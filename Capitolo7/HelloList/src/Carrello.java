@@ -12,5 +12,12 @@ public class Carrello {
     public void AggiungiAlimento(Alimento alimento) {
         alimenti.add(alimento);
     }
-    
+
+    public void AggiungiAlimento(String nome, String categoria, String dataScadenza, int qt) {
+        alimenti.add(new Alimento(nome, categoria, dataScadenza, qt));
+    }
+
+    public void RimuoviAlimento(Alimento alimento) {
+        alimenti.remove(alimento);
+    }
 }
