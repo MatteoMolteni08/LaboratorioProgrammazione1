@@ -43,6 +43,7 @@ public class House {
         for (Room stanza : stanze) {
             if (stanza.getNome().equals(nome)) {
                 stanze.remove(stanza);
+                break;
             }
         }
     }
