@@ -28,6 +28,6 @@ public class Entry {
     @Override
     public String toString() {
         return "ITA: " + parolaItaliano +
-                " -> ENG: " + parolaInglese + '}';
+                " -> ENG: " + parolaInglese;
     }
 }
