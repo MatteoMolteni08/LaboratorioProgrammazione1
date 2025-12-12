@@ -12,7 +12,19 @@ public class Main {
         biblioteca.aggiungiItem(new Dvd("ABC67", "Un film Minecraft", 2025, "Film", "Jared Hess", 101));
         biblioteca.aggiungiItem(new Libro("CB341", "Kendal: Nel regno delle tenebre", 2025, "Avventura", "Kendal", 160));
         biblioteca.aggiungiItem(new Libro("CB341", "Kendal: Nel regno delle tenebre", 2025, "Avventura", "Kendal", 160));
+
         System.out.println(biblioteca.getCatalogo());
+        System.out.println(biblioteca.getElementiDiAutore("Kendal"));
+        biblioteca.aggiungiPrenotazioneFIFO(biblioteca.getCatalogo().get(0));
+        biblioteca.aggiungiPrenotazioneFIFO(biblioteca.getCatalogo().get(1));
+        biblioteca.aggiungiPrenotazioneFIFO(biblioteca.getCatalogo().get(2));
+
+        System.out.println(biblioteca.prossimaPrenotazioneFIFO());
+
+        biblioteca.aggiungiConsegnaUrgenteLIFO(new Libro("B122", "Mussi", 2025, "Informatica", "Francesco Mussi", 1000));
+        biblioteca.aggiungiConsegnaUrgenteLIFO(biblioteca.getCatalogo().get(2));
+        biblioteca.aggiungiConsegnaUrgenteLIFO(biblioteca.getCatalogo().get(1));
+        System.out.println(biblioteca.prossimaConsegnaLIFO());
 
     }
 }
