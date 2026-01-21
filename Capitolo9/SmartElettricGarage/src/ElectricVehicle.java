@@ -30,4 +30,6 @@ public abstract class ElectricVehicle {
         }
         return batteryLevel;
     }
+
+    public abstract String drive();
 }
