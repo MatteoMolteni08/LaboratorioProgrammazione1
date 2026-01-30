@@ -40,4 +40,6 @@ public abstract class Prenotazione implements Documentabile {
     }
 
     abstract String generaTicket();
+
+    abstract double calcolaCostoTotale();
 }
