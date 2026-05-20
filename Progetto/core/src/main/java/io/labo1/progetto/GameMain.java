@@ -61,7 +61,7 @@ public class GameMain extends ApplicationAdapter {
     @Override
     public void render() {
         dt = Gdx.graphics.getDeltaTime();
-        vel = 100 * dt;
+        vel = 220 * dt;
 
         if (!playerBounds.overlaps(groundBounds) && !isJumping){
             playerPos[1] += gravity * dt;
