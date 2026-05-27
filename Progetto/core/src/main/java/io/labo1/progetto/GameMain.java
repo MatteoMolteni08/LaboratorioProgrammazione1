@@ -48,6 +48,7 @@ public class GameMain extends ApplicationAdapter {
     private Music bgMusic;
     private Sound jumpSound;
     private Sound bonkSound;
+    private Sound eating;
     private Texture background;
     private Baguette baguette;
     private Random rand;
@@ -62,13 +63,13 @@ public class GameMain extends ApplicationAdapter {
         player = new Texture("teto/default_pose1.png");
         baguetteTexture = new Texture("baguette.png");
         baguette = new Baguette(1000, 90);
-        background = new Texture("virtual_bg.png");
+        background = new Texture("bg.jpg");
         path = "teto/";
 
         poseNum = new int[]{24, 4, 9, 4, 18}; /** default_pose, run, jump, death, drill_attack **/
         skinNum = 1;
 
-        gravity = -150f;
+        gravity = -200f;
         jump = 350f;
 
         playerPos = new float[] {90f, 100f};
@@ -101,8 +102,9 @@ public class GameMain extends ApplicationAdapter {
         bgMusic.setLooping(true); // true = riparte automaticamente
         // Avvio
         bgMusic.play();
-        jumpSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/jump.mp3"));
-        bonkSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/bonk.mp3"));
+        jumpSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/jump.wav"));
+        bonkSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/bonk.wav"));
+        eating = Gdx.audio.newSound(Gdx.files.internal("Sounds/nom-nom.wav"));
 
     }
 
@@ -200,6 +202,7 @@ public class GameMain extends ApplicationAdapter {
                 }
                 // Caso B: Teto sta saltando e picchia la testa sotto la piattaforma
                 else if (moveY > 0) {
+                    bonkSound.play();
                     playerPos[1] = p.getPosY() - playerBounds.height;
                     isJumping = false; // Interrompe il salto e la fa iniziare a cadere
                     playerBounds.y = playerPos[1];
@@ -209,6 +212,7 @@ public class GameMain extends ApplicationAdapter {
 
         if (playerBounds.overlaps(baguetteBounds)) {
             int num;
+            eating.play();
             do {
                 num = rand.nextInt(0, baguette.getPosPos().size());
             }while (num == baguetteIndex);
