@@ -7,11 +7,14 @@ import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.Array; // Cosigliato dall'AI per la gestione di più piattaforme sospese
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 
 import java.util.Random;
 
@@ -21,6 +24,10 @@ public class GameMain extends ApplicationAdapter {
     private SpriteBatch batch;
     private Texture player;
     private ShapeRenderer sr;
+    private BitmapFont scoreFont;
+    FreeTypeFontGenerator gen;
+    FreeTypeFontParameter param = new FreeTypeFontParameter();
+
     private String path;
     private int[] poseNum;
     private int skinNum;
@@ -60,6 +67,13 @@ public class GameMain extends ApplicationAdapter {
         batch = new SpriteBatch();
         sr = new ShapeRenderer();
 
+        scoreFont = new BitmapFont();
+        scoreFont.setColor(Color.BLACK);
+        scoreFont.getData().setScale(1.8f);
+        gen = new FreeTypeFontGenerator(Gdx.files.internal("Fonts/DS-DIGIB.TTF"));
+        param.size = 32;
+        scoreFont = gen.generateFont(param);
+
         player = new Texture("teto/default_pose1.png");
         baguetteTexture = new Texture("baguette.png");
         baguette = new Baguette(1000, 90);
@@ -74,6 +88,7 @@ public class GameMain extends ApplicationAdapter {
 
         playerPos = new float[] {90f, 100f};
         baguetteIndex = 0;
+        score = 0;
 
         screenWidth = Gdx.graphics.getWidth();
         screenHeight = Gdx.graphics.getHeight();
@@ -216,7 +231,7 @@ public class GameMain extends ApplicationAdapter {
             do {
                 num = rand.nextInt(0, baguette.getPosPos().size());
             }while (num == baguetteIndex);
-            score++;
+            score+=10;
             baguetteIndex = num;
             // 1. Prendi l'array {X, Y} corrispondente all'indice
             int[] coordinate = baguette.getPosPos().get(baguetteIndex);
@@ -241,9 +256,22 @@ public class GameMain extends ApplicationAdapter {
         }
         sr.end();
 
+
         batch.begin();
         batch.draw(baguetteTexture, baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
         batch.draw(player, playerPos[0], playerPos[1]);
+        if (score < 10){
+            scoreFont.draw(batch, "Score: 000" + score, screenWidth - 200, screenHeight - 20);
+        }else if (score < 100) {
+            scoreFont.draw(batch, "Score: 00" + score, screenWidth - 200, screenHeight - 20);
+        }else if (score < 1000){
+            scoreFont.draw(batch, "Score: 0" + score, screenWidth - 200, screenHeight - 20);
+
+        } else if (score < 10000) {
+            scoreFont.draw(batch, "Score: " + score, screenWidth - 200, screenHeight - 20);
+        }else {
+            scoreFont.draw(batch, "Score: 9999", screenWidth - 200, screenHeight - 20);
+        }
         batch.end();
     }
 
@@ -254,5 +282,11 @@ public class GameMain extends ApplicationAdapter {
         baguetteTexture.dispose();
         background.dispose();
         sr.dispose();
+        scoreFont.dispose();
+        bgMusic.dispose();
+        bonkSound.dispose();
+        jumpSound.dispose();
+        eating.dispose();
+        gen.dispose();
     }
 }

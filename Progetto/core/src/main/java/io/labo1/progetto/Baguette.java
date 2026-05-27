@@ -14,6 +14,8 @@ public class Baguette extends Element {
         posPos.add(new int[]{700, 300});
         posPos.add(new int[]{1000, 460});
         posPos.add(new int[]{15, 540});
+        posPos.add(new int[]{100, 340});
+        posPos.add(new int[]{480, 90});
     }
 
     public ArrayList<int[]> getPosPos() {
