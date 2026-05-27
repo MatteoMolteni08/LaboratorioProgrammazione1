@@ -11,6 +11,8 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.Array; // Cosigliato dall'AI per la gestione di più piattaforme sospese
+
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class GameMain extends ApplicationAdapter {
@@ -29,8 +31,7 @@ public class GameMain extends ApplicationAdapter {
 
     private Rectangle playerBounds;
     private Rectangle groundBounds;
-    private Platform platform1;
-    private Rectangle platform1Bounds;
+    private Array<Platform> platforms;
 
     private float dt;
     private float vel;
@@ -64,8 +65,15 @@ public class GameMain extends ApplicationAdapter {
         baguetteBounds = new Rectangle(1000, 90, 40,40);
         isJumping = false;
         maxJumpHeight = 160;
-        platform1 = new Platform(500, 190, 300, 30);
-        platform1Bounds = new Rectangle(platform1.toRectangle());
+        platforms = new Array<Platform>();
+
+        // Aggiungi le tue piattaforme (x, y, larghezza, altezza)
+        platforms.add(new Platform(400, 180, 150, 20));
+        platforms.add(new Platform(650, 280, 200, 20));
+        platforms.add(new Platform(100, 320, 180, 20));
+        platforms.add(new Platform(370, 400, 200, 20));
+        platforms.add(new Platform(600, 440, 430, 20));
+        platforms.add(new Platform(10, 520, 350, 20));
 
         // Caricamento diretto nel metodo Create()
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Music/teto-territory-8-BITS.mp3"));
@@ -84,71 +92,110 @@ public class GameMain extends ApplicationAdapter {
         dt = Gdx.graphics.getDeltaTime();
         vel = 220 * dt;
 
-        // 1. APPLICA I MOVIMENTI (Input e Forze)
-        // Movimento orizzontale
-        if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)){
-            if (playerPos[0] > 0) playerPos[0] -= vel;
+        // Calcola la velocità orizzontale desiderata in questo frame
+        float moveX = 0;
+        if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
+            moveX = -vel;
         } else if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            if (playerPos[0] + 51 < screenWidth) playerPos[0] += vel;
+            moveX = vel;
         }
 
-        // 1. APPLICA SEMPRE LA GRAVITÀ (Se non stai saltando)
+        // Calcola la velocità verticale desiderata in questo frame
+        float moveY = 0;
         if (isJumping) {
             if (playerPos[1] < maxJumpHeight + lastPlatformTouchedHeight) {
-                playerPos[1] += 150 * dt;
+                moveY = 150 * dt;
             } else {
                 isJumping = false;
             }
         } else {
-            // Applica sempre la forza di gravità verso il basso
-            playerPos[1] += gravity * dt;
+            // Applica gravità (normale o potenziata dallo schianto)
+            moveY = gravity * dt;
         }
 
-        // 2. AGGIORNA I BOUNDS CON LA NUOVA POSIZIONE
+        // ==========================================
+        // FASE 1: MOVIMENTO E COLLISIONE ORIZZONTALE (X)
+        // ==========================================
+        playerPos[0] += moveX;
+        // Impedisci di uscire dai bordi dello schermo
+        if (playerPos[0] < 0) playerPos[0] = 0;
+        if (playerPos[0] + 51 > screenWidth) playerPos[0] = screenWidth - 51;
+
+        // Aggiorna la X della hitbox per il controllo laterale
         playerBounds.x = playerPos[0];
+
+        // Controlla la collisione laterale con OGNI piattaforma
+        for (Platform p : platforms) {
+            // Creiamo al volo un rettangolo temporaneo per la piattaforma corrente
+            Rectangle pBounds = new Rectangle(p.getPosX(), p.getPosY(), p.getWidth(), p.getHeight());
+
+            if (playerBounds.overlaps(pBounds)) {
+                // Se andavi a destra, hai colpito il muro sinistro della piattaforma
+                if (moveX > 0) {
+                    playerPos[0] = p.getPosX() - playerBounds.width;
+                }
+                // Se andavi a sinistra, hai colpito il muro destro della piattaforma
+                else if (moveX < 0) {
+                    playerPos[0] = p.getPosX() + p.getWidth();
+                }
+                // Sincronizza subito i bounds dopo il blocco laterale
+                playerBounds.x = playerPos[0];
+            }
+        }
+
+        // ==========================================
+        // FASE 2: MOVIMENTO E COLLISIONE VERTICALE (Y)
+        // ==========================================
+        playerPos[1] += moveY;
         playerBounds.y = playerPos[1];
 
-        // 3. RISOLVI LE COLLISIONI (Riposiziona solo se atterri davvero)
+        // Collisione con il terreno fisso
         if (playerBounds.overlaps(groundBounds)) {
-            playerPos[1] = 90f; // Sopra il terreno esatto
+            playerPos[1] = 90f;
             lastPlatformTouchedHeight = 90f;
-            isJumping = false; // Resetta lo stato di salto
-            playerBounds.y = playerPos[1]; // Sincronizza hitbox
+            isJumping = false;
+            playerBounds.y = playerPos[1];
 
             if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
                 isJumping = true;
                 jumpSound.play(1.0f);
             }
         }
-        else if (playerBounds.overlaps(platform1Bounds)) {
-            // CONDIZIONE CRITICA: Gestisci la collisione SOLO se Teto sta scendendo
-            // e i suoi piedi sono effettivamente sopra il livello della piattaforma
-            if (playerPos[1] >= platform1.getPosY() + platform1.getHeight() - 8f) {
-                playerPos[1] = platform1.getPosY() + platform1.getHeight(); // Blocca sopra la piattaforma
-                lastPlatformTouchedHeight = platform1.getPosY() + platform1.getHeight();
-                isJumping = false;
-                playerBounds.y = playerPos[1]; // Sincronizza hitbox
 
-                if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
-                    isJumping = true;
-                    jumpSound.play(1.0f);
+        // Controlla la collisione verticale con OGNI piattaforma
+        for (Platform p : platforms) {
+            Rectangle pBounds = new Rectangle(p.getPosX(), p.getPosY(), p.getWidth(), p.getHeight());
+
+            if (playerBounds.overlaps(pBounds)) {
+                // Caso A: Teto sta cadendo ed entra dall'alto (Atterraggio)
+                if (moveY < 0 && playerPos[1] >= p.getPosY() + p.getHeight() - 8f) {
+                    playerPos[1] = p.getPosY() + p.getHeight();
+                    lastPlatformTouchedHeight = p.getPosY() + p.getHeight();
+                    isJumping = false;
+                    playerBounds.y = playerPos[1];
+
+                    if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
+                        isJumping = true;
+                        jumpSound.play(1.0f);
+                    }
                 }
-            }if (playerPos[1] + playerBounds.height <= platform1.getPosY() + 10f){
-                bonkSound.play(1.0f);
-                playerPos[1] = platform1.getPosY() - playerBounds.height;
-                isJumping = false;
+                // Caso B: Teto sta saltando e picchia la testa sotto la piattaforma
+                else if (moveY > 0) {
+                    playerPos[1] = p.getPosY() - playerBounds.height;
+                    isJumping = false; // Interrompe il salto e la fa iniziare a cadere
+                    playerBounds.y = playerPos[1];
+                }
             }
-            // Se tocca lateralmente o dal basso, non fare nulla: la gravità continuerà
-            // a farla cadere naturalmente senza bloccarla a mezz'aria!
         }
-
         // 4. RENDERING GRAFICO
         ScreenUtils.clear(0.53f, 0.81f, 0.99f, 1f);
 
         sr.begin(ShapeRenderer.ShapeType.Filled);
         sr.setColor(Color.GREEN);
         sr.rect(0, 0, Gdx.graphics.getWidth(), 90);
-        sr.rect(platform1.getPosX(), platform1.getPosY(), platform1.getWidth(), platform1.getHeight());
+        for (Platform p : platforms) {
+            sr.rect(p.getPosX(), p.getPosY(), p.getWidth(), p.getHeight());
+        }
         sr.end();
 
         batch.begin();

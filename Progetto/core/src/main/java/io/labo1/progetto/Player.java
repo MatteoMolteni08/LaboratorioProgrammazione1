@@ -1,19 +1,18 @@
 package io.labo1.progetto;
 
-public class Player {
+public class Player extends Element {
     protected String skinName;
     protected int health = 100;
     protected double speed;
     protected double jump;
-    protected double x;
-    protected double y;
 
-    public Player(String skinName, double speed, double jump, double x, double y) {
+
+    public Player(double x, double y, String skinName, int health, double speed, double jump) {
+        super(x, y);
         this.skinName = skinName;
+        this.health = health;
         this.speed = speed;
         this.jump = jump;
-        this.x = x;
-        this.y = y;
     }
 
     public String getSkinName() {
@@ -41,17 +40,4 @@ public class Player {
     public void setJump(double jump) {
         this.jump = jump;
     }
-    public double getX() {
-        return x;
-    }
-    public void setX(double x) {
-        this.x = x;
-    }
-    public double getY() {
-        return y;
-    }
-    public void setY(double y) {
-        this.y = y;
-    }
-
 }
