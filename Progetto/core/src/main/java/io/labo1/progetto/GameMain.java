@@ -126,6 +126,9 @@ public class GameMain extends ApplicationAdapter {
     @Override
     public void render() {
         dt = Gdx.graphics.getDeltaTime();
+        gameLevel();
+    }
+    public void gameLevel(){
         vel = 220 * dt;
 
         // Calcola la velocità orizzontale desiderata in questo frame
@@ -225,13 +228,14 @@ public class GameMain extends ApplicationAdapter {
             }
         }
 
+        //Se la baguette viene toccata si sposta e vengono aggiunti 5 punti allo score
         if (playerBounds.overlaps(baguetteBounds)) {
             int num;
             eating.play();
             do {
                 num = rand.nextInt(0, baguette.getPosPos().size());
             }while (num == baguetteIndex);
-            score+=10;
+            score+=5;
             baguetteIndex = num;
             // 1. Prendi l'array {X, Y} corrispondente all'indice
             int[] coordinate = baguette.getPosPos().get(baguetteIndex);

@@ -17,7 +17,7 @@ public class Lwjgl3Launcher {
 
     private static Lwjgl3ApplicationConfiguration getDefaultConfiguration() {
         Lwjgl3ApplicationConfiguration configuration = new Lwjgl3ApplicationConfiguration();
-        configuration.setTitle("progettoM121");
+        configuration.setTitle("Teto baguette rush");
         //// Vsync limits the frames per second to what your hardware can display, and helps eliminate
         //// screen tearing. This setting doesn't always work on Linux, so the line after is a safeguard.
         configuration.useVsync(true);
@@ -41,7 +41,7 @@ public class Lwjgl3Launcher {
         //// You can choose to add the following line and the mentioned dependency if you want; they
         //// are not intended for games that use GL30 (which is compatibility with OpenGL ES 3.0).
         //// Know that it might not work well in some cases.
-//        configuration.setOpenGLEmulation(Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20, 0, 0);
+        //configuration.setOpenGLEmulation(Lwjgl3ApplicationConfiguration.GLEmulation.ANGLE_GLES20, 0, 0);
         return configuration;
     }
 }
