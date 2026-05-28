@@ -21,8 +21,9 @@ import java.util.Random;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class GameMain extends ApplicationAdapter {
+    private Player player;
     private SpriteBatch batch;
-    private Texture player;
+    private Texture playerTexture;
     private ShapeRenderer sr;
     private BitmapFont scoreFont;
     FreeTypeFontGenerator gen;
@@ -36,7 +37,6 @@ public class GameMain extends ApplicationAdapter {
     private float[] playerPos;
     private int screenWidth;
     private int screenHeight;
-    private boolean gravityOn;
 
     private Rectangle playerBounds;
     private Rectangle groundBounds;
@@ -60,6 +60,7 @@ public class GameMain extends ApplicationAdapter {
     private Baguette baguette;
     private Random rand;
     private int baguetteIndex;
+    private String gameStat;
 
     @Override
     public void create() {
@@ -74,11 +75,14 @@ public class GameMain extends ApplicationAdapter {
         param.size = 32;
         scoreFont = gen.generateFont(param);
 
-        player = new Texture("teto/default_pose1.png");
-        baguetteTexture = new Texture("baguette.png");
-        baguette = new Baguette(1000, 90);
-        background = new Texture("bg.jpg");
+        player = new Player(90f, 100f, "default_pose1", 100, 220, 350);
+
         path = "teto/";
+        playerTexture = new Texture(path + player.getSkinName() + ".png");
+        baguetteTexture = new Texture("baguette.png");
+        baguette = new Baguette(1000f, 90f);
+        background = new Texture("bg.jpg");
+
 
         poseNum = new int[]{24, 4, 9, 4, 18}; /** default_pose, run, jump, death, drill_attack **/
         skinNum = 1;
@@ -120,6 +124,8 @@ public class GameMain extends ApplicationAdapter {
         jumpSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/jump.wav"));
         bonkSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/bonk.wav"));
         eating = Gdx.audio.newSound(Gdx.files.internal("Sounds/nom-nom.wav"));
+
+        gameStat = "menu";
 
     }
 
@@ -166,16 +172,16 @@ public class GameMain extends ApplicationAdapter {
         // Controlla la collisione laterale con OGNI piattaforma
         for (Platform p : platforms) {
             // Creiamo al volo un rettangolo temporaneo per la piattaforma corrente
-            Rectangle pBounds = new Rectangle(p.getPosX(), p.getPosY(), p.getWidth(), p.getHeight());
+            Rectangle pBounds = new Rectangle(p.toRectangle());
 
             if (playerBounds.overlaps(pBounds)) {
                 // Se andavi a destra, hai colpito il muro sinistro della piattaforma
                 if (moveX > 0) {
-                    playerPos[0] = p.getPosX() - playerBounds.width;
+                    playerPos[0] = p.getX() - playerBounds.width;
                 }
                 // Se andavi a sinistra, hai colpito il muro destro della piattaforma
                 else if (moveX < 0) {
-                    playerPos[0] = p.getPosX() + p.getWidth();
+                    playerPos[0] = p.getX() + p.getWidth();
                 }
                 // Sincronizza subito i bounds dopo il blocco laterale
                 playerBounds.x = playerPos[0];
@@ -203,13 +209,13 @@ public class GameMain extends ApplicationAdapter {
 
         // Controlla la collisione verticale con OGNI piattaforma
         for (Platform p : platforms) {
-            Rectangle pBounds = new Rectangle(p.getPosX(), p.getPosY(), p.getWidth(), p.getHeight());
+            Rectangle pBounds = new Rectangle(p.toRectangle());
 
             if (playerBounds.overlaps(pBounds)) {
                 // Caso A: Teto sta cadendo ed entra dall'alto (Atterraggio)
-                if (moveY < 0 && playerPos[1] >= p.getPosY() + p.getHeight() - 8f) {
-                    playerPos[1] = p.getPosY() + p.getHeight();
-                    lastPlatformTouchedHeight = p.getPosY() + p.getHeight();
+                if (moveY < 0 && playerPos[1] >= p.getY() + p.getHeight() - 8f) {
+                    playerPos[1] = p.getY() + p.getHeight();
+                    lastPlatformTouchedHeight = p.getY() + p.getHeight();
                     isJumping = false;
                     playerBounds.y = playerPos[1];
 
@@ -221,7 +227,7 @@ public class GameMain extends ApplicationAdapter {
                 // Caso B: Teto sta saltando e picchia la testa sotto la piattaforma
                 else if (moveY > 0) {
                     bonkSound.play();
-                    playerPos[1] = p.getPosY() - playerBounds.height;
+                    playerPos[1] = p.getY() - playerBounds.height;
                     isJumping = false; // Interrompe il salto e la fa iniziare a cadere
                     playerBounds.y = playerPos[1];
                 }
@@ -256,14 +262,14 @@ public class GameMain extends ApplicationAdapter {
         sr.rect(0, 0, Gdx.graphics.getWidth(), 90);
         sr.setColor(142f/ 255f, 142f/ 255f, 142f/ 255f, 1f);
         for (Platform p : platforms) {
-            sr.rect(p.getPosX(), p.getPosY(), p.getWidth(), p.getHeight());
+            sr.rect(p.getX(), p.getY(), p.getWidth(), p.getHeight());
         }
         sr.end();
 
 
         batch.begin();
         batch.draw(baguetteTexture, baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
-        batch.draw(player, playerPos[0], playerPos[1]);
+        batch.draw(playerTexture, playerPos[0], playerPos[1]);
         if (score < 10){
             scoreFont.draw(batch, "Score: 000" + score, screenWidth - 200, screenHeight - 20);
         }else if (score < 100) {
@@ -282,7 +288,7 @@ public class GameMain extends ApplicationAdapter {
     @Override
     public void dispose() {
         batch.dispose();
-        player.dispose();
+        playerTexture.dispose();
         baguetteTexture.dispose();
         background.dispose();
         sr.dispose();
