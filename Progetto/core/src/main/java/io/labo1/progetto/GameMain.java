@@ -144,7 +144,7 @@ public class GameMain extends ApplicationAdapter {
 
         batch.begin();
         batch.setColor(1f,1f,1f,0.5f);
-        batch.draw(bgMenu, -254, 0);
+        batch.draw(bgMenu, -10, 0);
         batch.setColor(1f,1f,1f,1f);
         batch.end();
     }
