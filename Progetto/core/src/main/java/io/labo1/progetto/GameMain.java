@@ -7,6 +7,7 @@ import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -16,6 +17,7 @@ import com.badlogic.gdx.utils.Array; // Cosigliato dall'AI per la gestione di pi
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
 
+import java.util.ArrayList;
 import java.util.Random;
 
 
@@ -23,15 +25,28 @@ import java.util.Random;
 public class GameMain extends ApplicationAdapter {
     private Player player;
     private SpriteBatch batch;
-    private Texture playerTexture;
+    private ArrayList<Texture> playerTexture;
+    private Animation<Texture> defaultAnimation;
+    private ArrayList<Texture> playerTextureRun;
+    private Animation<Texture> runAnimation;
+    private ArrayList<Texture> playerTextureDeath;
+    private Animation<Texture> deathAnimation;
+    private ArrayList<Texture> playerTextureJump;
+    private Animation<Texture> jumpAnimation;
     private ShapeRenderer sr;
     private BitmapFont scoreFont;
     FreeTypeFontGenerator gen;
     FreeTypeFontParameter param = new FreeTypeFontParameter();
 
+    // Variabili di controllo
+    private Animation<Texture> currentAnimation; // Punta all'animazione attiva ora
+    private float stateTime = 0f;
+
+    // Definiamo gli stati possibili del personaggio
+    public enum State { IDLE, RUNNING, JUMPING, DEAD }
+    private State currentState = State.IDLE;
+
     private String path;
-    private int[] poseNum;
-    private int skinNum;
     private float gravity;
     private int screenWidth;
     private int screenHeight;
@@ -67,6 +82,37 @@ public class GameMain extends ApplicationAdapter {
         batch = new SpriteBatch();
         sr = new ShapeRenderer();
 
+        path = "teto/";
+        playerTexture = new ArrayList<>();
+        for (int x = 1; x < 25; x++) {
+            playerTexture.add(new Texture(path + "default_pose" + x + ".png"));
+        }
+        defaultAnimation = new Animation<>(0.1f, playerTexture.toArray(new Texture[0]));
+        playerTextureRun = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            playerTextureRun.add(new Texture(path+ "run" + (i + 1)+".png"));
+        }
+        runAnimation = new Animation<>(0.08f, playerTextureRun.toArray(new Texture[0]));
+        playerTextureDeath= new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            playerTextureDeath.add(new Texture(path+ "death" + (i + 1)+".png"));
+        }
+        deathAnimation = new Animation<>(0.1f, playerTextureDeath.toArray(new Texture[0]));
+        playerTextureJump= new ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            playerTextureJump.add(new Texture(path+ "jump" + (i + 1)+".png"));
+        }
+        jumpAnimation = new Animation<>(0.12f, playerTextureJump.toArray(new Texture[0]));
+
+        // Imposta i loop dove serve
+        defaultAnimation.setPlayMode(Animation.PlayMode.LOOP);
+        runAnimation.setPlayMode(Animation.PlayMode.LOOP);
+        jumpAnimation.setPlayMode(Animation.PlayMode.NORMAL);  // Salto e morte di solito
+        deathAnimation.setPlayMode(Animation.PlayMode.NORMAL); // si riproducono una volta sola
+
+        // All'inizio il personaggio è fermo
+        currentAnimation = defaultAnimation;
+
         scoreFont = new BitmapFont();
         scoreFont.setColor(Color.BLACK);
         scoreFont.getData().setScale(1.8f);
@@ -74,19 +120,14 @@ public class GameMain extends ApplicationAdapter {
         param.size = 32;
         scoreFont = gen.generateFont(param);
 
-        player = new Player(90f, 100f, "default_pose1", 100, 220, 350);
+        player = new Player(90f, 100f, 100, 220, 220);
 
-        path = "teto/";
-        playerTexture = new Texture(path + player.getSkinName() + ".png");
+
         baguetteTexture = new Texture("baguette.png");
         baguette = new Baguette(1000f, 90f, 50f);
         background = new Texture("bg.jpg");
 
-
-        poseNum = new int[]{24, 4, 9, 4, 18}; /** default_pose, run, jump, death, drill_attack **/
-        skinNum = 1;
-
-        gravity = -200f;
+        gravity = -250f;
         baguetteIndex = 0;
         score = 0;
 
@@ -115,8 +156,7 @@ public class GameMain extends ApplicationAdapter {
         // Configurazione
         bgMusic.setVolume(0.5f); // 0.0 → 1.0
         bgMusic.setLooping(true); // true = riparte automaticamente
-        // Avvio
-        bgMusic.play();
+
         jumpSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/jump.wav"));
         bonkSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/bonk.wav"));
         eating = Gdx.audio.newSound(Gdx.files.internal("Sounds/nom-nom.wav"));
@@ -140,6 +180,7 @@ public class GameMain extends ApplicationAdapter {
 
         if (Gdx.input.isKeyPressed(Input.Keys.SPACE)){
             gameStat = "play";
+            bgMusic.play();
         }
 
         batch.begin();
@@ -164,7 +205,7 @@ public class GameMain extends ApplicationAdapter {
         float moveY = 0;
         if (isJumping) {
             if (player.getY() < maxJumpHeight + lastPlatformTouchedHeight) {
-                moveY = 150 * dt;
+                moveY = player.getJump() * dt;
             } else {
                 isJumping = false;
             }
@@ -284,7 +325,7 @@ public class GameMain extends ApplicationAdapter {
 
         batch.begin();
         batch.draw(baguetteTexture, baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
-        batch.draw(playerTexture, player.getX(), player.getY());
+        batch.draw(playerTexture.get(0), player.getX(), player.getY());
         if (score < 10){
             scoreFont.draw(batch, "Score: 000" + score, screenWidth - 200, screenHeight - 20);
         }else if (score < 100) {
@@ -303,7 +344,18 @@ public class GameMain extends ApplicationAdapter {
     @Override
     public void dispose() {
         batch.dispose();
-        playerTexture.dispose();
+        for (Texture t: playerTexture){
+            t.dispose();
+        }
+        for (Texture t: playerTextureDeath){
+            t.dispose();
+        }
+        for (Texture t: playerTextureRun){
+            t.dispose();
+        }
+        for (Texture t: playerTextureJump){
+            t.dispose();
+        }
         baguetteTexture.dispose();
         background.dispose();
         sr.dispose();
