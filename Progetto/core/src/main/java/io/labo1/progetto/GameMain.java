@@ -33,8 +33,6 @@ public class GameMain extends ApplicationAdapter {
     private int[] poseNum;
     private int skinNum;
     private float gravity;
-    private float jump;
-    private float[] playerPos;
     private int screenWidth;
     private int screenHeight;
 
@@ -61,6 +59,7 @@ public class GameMain extends ApplicationAdapter {
     private Random rand;
     private int baguetteIndex;
     private String gameStat;
+    private Texture bgMenu;
 
     @Override
     public void create() {
@@ -80,7 +79,7 @@ public class GameMain extends ApplicationAdapter {
         path = "teto/";
         playerTexture = new Texture(path + player.getSkinName() + ".png");
         baguetteTexture = new Texture("baguette.png");
-        baguette = new Baguette(1000f, 90f);
+        baguette = new Baguette(1000f, 90f, 50f);
         background = new Texture("bg.jpg");
 
 
@@ -88,16 +87,13 @@ public class GameMain extends ApplicationAdapter {
         skinNum = 1;
 
         gravity = -200f;
-        jump = 350f;
-
-        playerPos = new float[] {90f, 100f};
         baguetteIndex = 0;
         score = 0;
 
         screenWidth = Gdx.graphics.getWidth();
         screenHeight = Gdx.graphics.getHeight();
 
-        playerBounds = new Rectangle(playerPos[0], playerPos[1], 51, 70);
+        playerBounds = new Rectangle(player.toRectangle());
         groundBounds = new Rectangle(0, 0, Gdx.graphics.getWidth(),90);
         baguetteBounds = new Rectangle(baguette.getPosPos().get(baguetteIndex)[0],baguette.getPosPos().get(baguetteIndex)[1], 40,40);
 
@@ -126,16 +122,35 @@ public class GameMain extends ApplicationAdapter {
         eating = Gdx.audio.newSound(Gdx.files.internal("Sounds/nom-nom.wav"));
 
         gameStat = "menu";
-
+        bgMenu = new Texture("teto_wallpaper.jpg");
     }
 
     @Override
     public void render() {
         dt = Gdx.graphics.getDeltaTime();
-        gameLevel();
+        if (gameStat == "menu"){
+            menu();
+        } else if (gameStat == "play") {
+            gameLevel();
+        }
     }
+
+    public void menu(){
+        ScreenUtils.clear(0f, 0f, 0f, 0f);
+
+        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)){
+            gameStat = "play";
+        }
+
+        batch.begin();
+        batch.setColor(1f,1f,1f,0.5f);
+        batch.draw(bgMenu, -254, 0);
+        batch.setColor(1f,1f,1f,1f);
+        batch.end();
+    }
+
     public void gameLevel(){
-        vel = 220 * dt;
+        vel = player.speed * dt;
 
         // Calcola la velocità orizzontale desiderata in questo frame
         float moveX = 0;
@@ -148,7 +163,7 @@ public class GameMain extends ApplicationAdapter {
         // Calcola la velocità verticale desiderata in questo frame
         float moveY = 0;
         if (isJumping) {
-            if (playerPos[1] < maxJumpHeight + lastPlatformTouchedHeight) {
+            if (player.getY() < maxJumpHeight + lastPlatformTouchedHeight) {
                 moveY = 150 * dt;
             } else {
                 isJumping = false;
@@ -161,13 +176,13 @@ public class GameMain extends ApplicationAdapter {
         // ==========================================
         // FASE 1: MOVIMENTO E COLLISIONE ORIZZONTALE (X)
         // ==========================================
-        playerPos[0] += moveX;
+        player.setX(player.getX() + moveX);
         // Impedisci di uscire dai bordi dello schermo
-        if (playerPos[0] < 0) playerPos[0] = 0;
-        if (playerPos[0] + 51 > screenWidth) playerPos[0] = screenWidth - 51;
+        if (player.getX() < 0) player.setX(0);
+        if (player.getX() + 51 > screenWidth) player.setX(screenWidth - player.getWidth());
 
         // Aggiorna la X della hitbox per il controllo laterale
-        playerBounds.x = playerPos[0];
+        playerBounds.x = player.getX();
 
         // Controlla la collisione laterale con OGNI piattaforma
         for (Platform p : platforms) {
@@ -177,29 +192,29 @@ public class GameMain extends ApplicationAdapter {
             if (playerBounds.overlaps(pBounds)) {
                 // Se andavi a destra, hai colpito il muro sinistro della piattaforma
                 if (moveX > 0) {
-                    playerPos[0] = p.getX() - playerBounds.width;
+                    player.setX(p.getX() - playerBounds.width);
                 }
                 // Se andavi a sinistra, hai colpito il muro destro della piattaforma
                 else if (moveX < 0) {
-                    playerPos[0] = p.getX() + p.getWidth();
+                    player.setX(p.getX() + p.getWidth());
                 }
                 // Sincronizza subito i bounds dopo il blocco laterale
-                playerBounds.x = playerPos[0];
+                playerBounds.x = player.getX();
             }
         }
 
         // ==========================================
         // FASE 2: MOVIMENTO E COLLISIONE VERTICALE (Y)
         // ==========================================
-        playerPos[1] += moveY;
-        playerBounds.y = playerPos[1];
+        player.setY(player.getY() + moveY);
+        playerBounds.y = player.getY();
 
         // Collisione con il terreno fisso
         if (playerBounds.overlaps(groundBounds)) {
-            playerPos[1] = 90f;
+            player.setY(90f);
             lastPlatformTouchedHeight = 90f;
             isJumping = false;
-            playerBounds.y = playerPos[1];
+            playerBounds.y = player.getY();
 
             if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
                 isJumping = true;
@@ -213,11 +228,11 @@ public class GameMain extends ApplicationAdapter {
 
             if (playerBounds.overlaps(pBounds)) {
                 // Caso A: Teto sta cadendo ed entra dall'alto (Atterraggio)
-                if (moveY < 0 && playerPos[1] >= p.getY() + p.getHeight() - 8f) {
-                    playerPos[1] = p.getY() + p.getHeight();
+                if (moveY < 0 && player.getY() >= p.getY() + p.getHeight() - 8f) {
+                    player.setY(p.getY() + p.getHeight());
                     lastPlatformTouchedHeight = p.getY() + p.getHeight();
                     isJumping = false;
-                    playerBounds.y = playerPos[1];
+                    playerBounds.y = player.getY();
 
                     if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
                         isJumping = true;
@@ -227,9 +242,9 @@ public class GameMain extends ApplicationAdapter {
                 // Caso B: Teto sta saltando e picchia la testa sotto la piattaforma
                 else if (moveY > 0) {
                     bonkSound.play();
-                    playerPos[1] = p.getY() - playerBounds.height;
+                    player.setY(p.getY() - playerBounds.height);
                     isJumping = false; // Interrompe il salto e la fa iniziare a cadere
-                    playerBounds.y = playerPos[1];
+                    playerBounds.y = player.getY();
                 }
             }
         }
@@ -269,7 +284,7 @@ public class GameMain extends ApplicationAdapter {
 
         batch.begin();
         batch.draw(baguetteTexture, baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
-        batch.draw(playerTexture, playerPos[0], playerPos[1]);
+        batch.draw(playerTexture, player.getX(), player.getY());
         if (score < 10){
             scoreFont.draw(batch, "Score: 000" + score, screenWidth - 200, screenHeight - 20);
         }else if (score < 100) {
@@ -298,5 +313,6 @@ public class GameMain extends ApplicationAdapter {
         jumpSound.dispose();
         eating.dispose();
         gen.dispose();
+        bgMenu.dispose();
     }
 }

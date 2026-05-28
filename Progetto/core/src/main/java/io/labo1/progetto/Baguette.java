@@ -8,8 +8,8 @@ public class Baguette extends Element {
     // 1. Dichiarazione e inizializzazione della lista (Ok qui)
     private ArrayList<int[]> posPos = new ArrayList<>();
 
-    public Baguette(float x, float y) {
-        super(x, y, 50f, 50f);
+    public Baguette(float x, float y, float size) {
+        super(x, y, size, size);
 
         // aggiunta dei dati dentro il costruttore
         posPos.add(new int[]{1000, 90});

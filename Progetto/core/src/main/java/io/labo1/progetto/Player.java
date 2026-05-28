@@ -4,12 +4,12 @@ import com.badlogic.gdx.math.Rectangle;
 
 public class Player extends Element {
     protected String skinName;
-    protected int health = 100;
-    protected double speed;
-    protected double jump;
+    protected int health;
+    protected float speed;
+    protected float jump;
 
 
-    public Player(float x, float y, String skinName, int health, double speed, double jump) {
+    public Player(float x, float y, String skinName, int health, float speed, float jump) {
         super(x, y, 51, 70);
         this.skinName = skinName;
         this.health = health;
@@ -33,17 +33,17 @@ public class Player extends Element {
     public void setHealth(int health) {
         this.health = health;
     }
-    public double getSpeed() {
+    public float getSpeed() {
         return speed;
     }
-    public void setSpeed(double speed) {
+    public void setSpeed(float speed) {
         this.speed = speed;
     }
 
-    public double getJump() {
+    public float getJump() {
         return jump;
     }
-    public void setJump(double jump) {
+    public void setJump(float jump) {
         this.jump = jump;
     }
 
