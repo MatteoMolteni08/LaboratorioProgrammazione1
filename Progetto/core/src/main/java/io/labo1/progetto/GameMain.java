@@ -37,6 +37,7 @@ public class GameMain extends ApplicationAdapter {
     private BitmapFont scoreFont;
     FreeTypeFontGenerator gen;
     FreeTypeFontParameter param = new FreeTypeFontParameter();
+    private boolean isGrounded;
 
     // Variabili di controllo
     private Animation<Texture> currentAnimation; // Punta all'animazione attiva ora
@@ -75,6 +76,7 @@ public class GameMain extends ApplicationAdapter {
     private int baguetteIndex;
     private String gameStat;
     private Texture bgMenu;
+    private boolean flipX;
 
     @Override
     public void create() {
@@ -87,22 +89,22 @@ public class GameMain extends ApplicationAdapter {
         for (int x = 1; x < 25; x++) {
             playerTexture.add(new Texture(path + "default_pose" + x + ".png"));
         }
-        defaultAnimation = new Animation<>(0.1f, playerTexture.toArray(new Texture[0]));
+        defaultAnimation = new Animation<>(0.15f, playerTexture.toArray(new Texture[0]));
         playerTextureRun = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
             playerTextureRun.add(new Texture(path+ "run" + (i + 1)+".png"));
         }
-        runAnimation = new Animation<>(0.08f, playerTextureRun.toArray(new Texture[0]));
+        runAnimation = new Animation<>(0.1f, playerTextureRun.toArray(new Texture[0]));
         playerTextureDeath= new ArrayList<>();
         for (int i = 0; i < 4; i++) {
             playerTextureDeath.add(new Texture(path+ "death" + (i + 1)+".png"));
         }
-        deathAnimation = new Animation<>(0.1f, playerTextureDeath.toArray(new Texture[0]));
+        deathAnimation = new Animation<>(0.16f, playerTextureDeath.toArray(new Texture[0]));
         playerTextureJump= new ArrayList<>();
         for (int i = 0; i < 9; i++) {
             playerTextureJump.add(new Texture(path+ "jump" + (i + 1)+".png"));
         }
-        jumpAnimation = new Animation<>(0.12f, playerTextureJump.toArray(new Texture[0]));
+        jumpAnimation = new Animation<>(0.15f, playerTextureJump.toArray(new Texture[0]));
 
         // Imposta i loop dove serve
         defaultAnimation.setPlayMode(Animation.PlayMode.LOOP);
@@ -163,6 +165,8 @@ public class GameMain extends ApplicationAdapter {
 
         gameStat = "menu";
         bgMenu = new Texture("teto_wallpaper.jpg");
+        flipX = false; // false = guarda a destra, true = guarda a sinistra
+        isGrounded = true;   // Il personaggio è a terra?
     }
 
     @Override
@@ -193,14 +197,33 @@ public class GameMain extends ApplicationAdapter {
     public void gameLevel(){
         vel = player.speed * dt;
 
+        // Logica di cambio stato (Esempio con tastiera)
+        State newState = currentState;
+
+
+
+        // 3. Aggiorna il tempo e disegna
+        stateTime += Gdx.graphics.getDeltaTime();
+        Texture currentFrame = currentAnimation.getKeyFrame(stateTime);
+
         // Calcola la velocità orizzontale desiderata in questo frame
         float moveX = 0;
         if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
             moveX = -vel;
+            flipX = true;
+            if (!isJumping){
+                newState = State.RUNNING;
+            }
         } else if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
             moveX = vel;
+            flipX = false;
+            if (!isJumping) {
+                newState = State.RUNNING;
+            }
         }
-
+        if (!isJumping && moveX ==0){
+            newState=State.IDLE;
+        }
         // Calcola la velocità verticale desiderata in questo frame
         float moveY = 0;
         if (isJumping) {
@@ -260,6 +283,7 @@ public class GameMain extends ApplicationAdapter {
             if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
                 isJumping = true;
                 jumpSound.play(1.0f);
+                newState = State.JUMPING;
             }
         }
 
@@ -306,6 +330,21 @@ public class GameMain extends ApplicationAdapter {
             baguetteBounds.x = coordinate[0];
             baguetteBounds.y = coordinate[1];
         }
+        // Se lo stato è cambiato, cambia animazione e resetta il tempo
+        if (currentState != newState) {
+            currentState = newState;
+            stateTime = 0f; // Reset fondamentale per far partire l'animazione da capo!
+
+            switch (currentState) {
+                case IDLE:    currentAnimation = defaultAnimation; break;
+                case RUNNING: currentAnimation = runAnimation;     break;
+                case JUMPING: currentAnimation = jumpAnimation;    break;
+                case DEAD:    currentAnimation = deathAnimation;   break;
+            }
+        }
+
+        stateTime += Gdx.graphics.getDeltaTime();
+        currentFrame = currentAnimation.getKeyFrame(stateTime);
 
         // 4. RENDERING GRAFICO
         ScreenUtils.clear(0.53f, 0.81f, 0.99f, 1f);
@@ -325,7 +364,14 @@ public class GameMain extends ApplicationAdapter {
 
         batch.begin();
         batch.draw(baguetteTexture, baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
-        batch.draw(playerTexture.get(0), player.getX(), player.getY());
+        batch.draw(
+            currentFrame,
+            player.getX(), player.getY(),
+            currentFrame.getWidth(), currentFrame.getHeight(),
+            0, 0,
+            currentFrame.getWidth(), currentFrame.getHeight(),
+            flipX, false // Passiamo flipX qui per girarlo orizzontalmente
+        );
         if (score < 10){
             scoreFont.draw(batch, "Score: 000" + score, screenWidth - 200, screenHeight - 20);
         }else if (score < 100) {
