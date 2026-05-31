@@ -39,6 +39,10 @@ public class GameMain extends ApplicationAdapter {
     FreeTypeFontParameter param = new FreeTypeFontParameter();
     private boolean isGrounded;
 
+    FreeTypeFontGenerator tutorialGen;
+    FreeTypeFontParameter tutorialParam;
+    private BitmapFont tutorialFont;
+
     // Variabili di controllo
     private Animation<Texture> currentAnimation; // Punta all'animazione attiva ora
     private float stateTime = 0f;
@@ -119,8 +123,13 @@ public class GameMain extends ApplicationAdapter {
         scoreFont.setColor(Color.BLACK);
         scoreFont.getData().setScale(1.8f);
         gen = new FreeTypeFontGenerator(Gdx.files.internal("Fonts/DS-DIGIB.TTF"));
+        tutorialGen = new FreeTypeFontGenerator(Gdx.files.internal("Fonts/1up.ttf"));
+        tutorialParam = new FreeTypeFontParameter();
         param.size = 32;
+        tutorialParam.size = 15;
         scoreFont = gen.generateFont(param);
+        tutorialFont = tutorialGen.generateFont(tutorialParam);
+        tutorialFont.setColor(Color.BLACK);
 
         player = new Player(90f, 100f, 100, 220, 220);
 
@@ -302,6 +311,7 @@ public class GameMain extends ApplicationAdapter {
                     if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
                         isJumping = true;
                         jumpSound.play(1.0f);
+                        newState = State.JUMPING;
                     }
                 }
                 // Caso B: Teto sta saltando e picchia la testa sotto la piattaforma
@@ -384,33 +394,48 @@ public class GameMain extends ApplicationAdapter {
         }else {
             scoreFont.draw(batch, "Score: 9999", screenWidth - 200, screenHeight - 20);
         }
+        if (score == 0){
+
+            tutorialFont.draw(batch, "Use A and D or LEFT \nand RIGHT arrows for move", 10, 60);
+            tutorialFont.draw(batch, "Use W or UP \narrow to \njump", 400, 160);
+            tutorialFont.draw(batch, "Touch the \nbaguette to \neat it", 900, 75);
+        }
         batch.end();
     }
 
     @Override
     public void dispose() {
+        // 1. Grafica e Rendering
         batch.dispose();
-        for (Texture t: playerTexture){
-            t.dispose();
-        }
-        for (Texture t: playerTextureDeath){
-            t.dispose();
-        }
-        for (Texture t: playerTextureRun){
-            t.dispose();
-        }
-        for (Texture t: playerTextureJump){
-            t.dispose();
-        }
-        baguetteTexture.dispose();
-        background.dispose();
         sr.dispose();
-        scoreFont.dispose();
-        bgMusic.dispose();
-        bonkSound.dispose();
-        jumpSound.dispose();
-        eating.dispose();
-        gen.dispose();
+        background.dispose();
+        baguetteTexture.dispose();
         bgMenu.dispose();
+
+        // 2. Texture dei cicli (Animazioni)
+        for (Texture tex : playerTexture) {
+            tex.dispose();
+        }
+        for (Texture tex : playerTextureRun) {
+            tex.dispose();
+        }
+        for (Texture tex : playerTextureDeath) {
+            tex.dispose();
+        }
+        for (Texture tex : playerTextureJump) {
+            tex.dispose();
+        }
+
+        // 3. Font e Generatori
+        scoreFont.dispose();
+        tutorialFont.dispose();
+        gen.dispose();
+        tutorialGen.dispose();
+
+        // 4. Audio
+        bgMusic.dispose();
+        jumpSound.dispose();
+        bonkSound.dispose();
+        eating.dispose();
     }
 }
