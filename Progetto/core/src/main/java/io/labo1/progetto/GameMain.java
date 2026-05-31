@@ -37,7 +37,6 @@ public class GameMain extends ApplicationAdapter {
     private BitmapFont scoreFont;
     FreeTypeFontGenerator gen;
     FreeTypeFontParameter param = new FreeTypeFontParameter();
-    private boolean isGrounded;
 
     FreeTypeFontGenerator tutorialGen;
     FreeTypeFontParameter tutorialParam;
@@ -175,7 +174,6 @@ public class GameMain extends ApplicationAdapter {
         gameStat = "menu";
         bgMenu = new Texture("teto_wallpaper.jpg");
         flipX = false; // false = guarda a destra, true = guarda a sinistra
-        isGrounded = true;   // Il personaggio è a terra?
     }
 
     @Override
@@ -202,7 +200,7 @@ public class GameMain extends ApplicationAdapter {
         batch.setColor(1f,1f,1f,1f);
         batch.end();
     }
-
+    // GameLevel è stato ottimizzato con l'AI
     public void gameLevel(){
         vel = player.speed * dt;
 
