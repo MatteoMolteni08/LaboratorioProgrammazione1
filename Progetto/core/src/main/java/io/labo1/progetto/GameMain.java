@@ -158,7 +158,7 @@ public class GameMain extends ApplicationAdapter {
         platforms.add(new Platform(650, 280, 200, 20));
         platforms.add(new Platform(100, 320, 180, 20));
         platforms.add(new Platform(370, 400, 200, 20));
-        platforms.add(new Platform(600, 440, 450, 20));
+        platforms.add(new Platform(600, 440, 470, 20));
         platforms.add(new Platform(10, 520, 350, 20));
         platforms.add(new Platform(550, 90, 200, 60));
 
@@ -206,12 +206,9 @@ public class GameMain extends ApplicationAdapter {
     public void gameLevel(){
         vel = player.speed * dt;
 
-        // Logica di cambio stato (Esempio con tastiera)
         State newState = currentState;
 
-
-
-        // 3. Aggiorna il tempo e disegna
+        // 1. GESTIONE ANIMAZIONE (Unificato l'incremento del tempo)
         stateTime += Gdx.graphics.getDeltaTime();
         Texture currentFrame = currentAnimation.getKeyFrame(stateTime);
 
@@ -230,9 +227,10 @@ public class GameMain extends ApplicationAdapter {
                 newState = State.RUNNING;
             }
         }
-        if (!isJumping && moveX ==0){
-            newState=State.IDLE;
+        if (!isJumping && moveX == 0){
+            newState = State.IDLE;
         }
+
         // Calcola la velocità verticale desiderata in questo frame
         float moveY = 0;
         if (isJumping) {
@@ -242,37 +240,31 @@ public class GameMain extends ApplicationAdapter {
                 isJumping = false;
             }
         } else {
-            // Applica gravità (normale o potenziata dallo schianto)
-            moveY = gravity * dt;
+            moveY = gravity * dt; // Applica gravità
         }
 
         // ==========================================
         // FASE 1: MOVIMENTO E COLLISIONE ORIZZONTALE (X)
         // ==========================================
         player.setX(player.getX() + moveX);
-        // Impedisci di uscire dai bordi dello schermo
         if (player.getX() < 0) player.setX(0);
         if (player.getX() + 51 > screenWidth) player.setX(screenWidth - player.getWidth());
 
-        // Aggiorna la X della hitbox per il controllo laterale
+        // Sincronizza la hitbox SOLO per la X prima del controllo
         playerBounds.x = player.getX();
+        playerBounds.y = player.getY(); // Tiene conto della Y attuale reale
 
         // Controlla la collisione laterale con OGNI piattaforma
         for (Platform p : platforms) {
-            // Creiamo al volo un rettangolo temporaneo per la piattaforma corrente
-            Rectangle pBounds = new Rectangle(p.toRectangle());
+            Rectangle pBounds = p.toRectangle(); // Evita "new Rectangle" inutile se toRectangle() ne dà già uno
 
             if (playerBounds.overlaps(pBounds)) {
-                // Se andavi a destra, hai colpito il muro sinistro della piattaforma
                 if (moveX > 0) {
                     player.setX(p.getX() - playerBounds.width);
-                }
-                // Se andavi a sinistra, hai colpito il muro destro della piattaforma
-                else if (moveX < 0) {
+                } else if (moveX < 0) {
                     player.setX(p.getX() + p.getWidth());
                 }
-                // Sincronizza subito i bounds dopo il blocco laterale
-                playerBounds.x = player.getX();
+                playerBounds.x = player.getX(); // Aggiorna subito dopo il blocco
             }
         }
 
@@ -280,6 +272,9 @@ public class GameMain extends ApplicationAdapter {
         // FASE 2: MOVIMENTO E COLLISIONE VERTICALE (Y)
         // ==========================================
         player.setY(player.getY() + moveY);
+
+        // Aggiorna la hitbox per l'asse Y mantenendo la X corretta di prima
+        playerBounds.x = player.getX();
         playerBounds.y = player.getY();
 
         // Collisione con il terreno fisso
@@ -298,11 +293,14 @@ public class GameMain extends ApplicationAdapter {
 
         // Controlla la collisione verticale con OGNI piattaforma
         for (Platform p : platforms) {
-            Rectangle pBounds = new Rectangle(p.toRectangle());
+            Rectangle pBounds = p.toRectangle();
 
             if (playerBounds.overlaps(pBounds)) {
-                // Caso A: Teto sta cadendo ed entra dall'alto (Atterraggio)
-                if (moveY < 0 && player.getY() >= p.getY() + p.getHeight() - 8f) {
+                // Usa Math.abs(moveY) come tolleranza dinamica invece di 8f fisso
+                float tolerance = Math.max(8f, Math.abs(moveY));
+
+                // Caso A: Caduta dall'alto (Atterraggio)
+                if (moveY <= 0 && (player.getY() - moveY) >= p.getY() + p.getHeight() - tolerance) {
                     player.setY(p.getY() + p.getHeight());
                     lastPlatformTouchedHeight = p.getY() + p.getHeight();
                     isJumping = false;
@@ -314,36 +312,41 @@ public class GameMain extends ApplicationAdapter {
                         newState = State.JUMPING;
                     }
                 }
-                // Caso B: Teto sta saltando e picchia la testa sotto la piattaforma
+                // Caso B: Salto da sotto (Testata)
                 else if (moveY > 0) {
                     bonkSound.play();
                     player.setY(p.getY() - playerBounds.height);
-                    isJumping = false; // Interrompe il salto e la fa iniziare a cadere
+                    isJumping = false;
                     playerBounds.y = player.getY();
                 }
             }
         }
 
-        //Se la baguette viene toccata si sposta e vengono aggiunti 5 punti allo score
+        // ==========================================
+        // FASE 3: INTERAZIONI E LOGICA DI GIOCO
+        // ==========================================
+        // Aggiorna un'ultima volta i bounds per gli oggetti collezionabili
+        playerBounds.x = player.getX();
+        playerBounds.y = player.getY();
+
         if (playerBounds.overlaps(baguetteBounds)) {
             int num;
             eating.play();
             do {
-                num = rand.nextInt(0, baguette.getPosPos().size());
-            }while (num == baguetteIndex);
-            score+=5;
+                num = rand.nextInt(baguette.getPosPos().size());
+            } while (num == baguetteIndex);
+            score += 5;
             baguetteIndex = num;
-            // 1. Prendi l'array {X, Y} corrispondente all'indice
-            int[] coordinate = baguette.getPosPos().get(baguetteIndex);
 
-            // 2. Assegna i valori singolarmente
+            int[] coordinate = baguette.getPosPos().get(baguetteIndex);
             baguetteBounds.x = coordinate[0];
             baguetteBounds.y = coordinate[1];
         }
-        // Se lo stato è cambiato, cambia animazione e resetta il tempo
+
+        // Gestione cambio di stato animazione
         if (currentState != newState) {
             currentState = newState;
-            stateTime = 0f; // Reset fondamentale per far partire l'animazione da capo!
+            stateTime = 0f;
 
             switch (currentState) {
                 case IDLE:    currentAnimation = defaultAnimation; break;
@@ -353,10 +356,12 @@ public class GameMain extends ApplicationAdapter {
             }
         }
 
-        stateTime += Gdx.graphics.getDeltaTime();
+        // Recupera il frame corretto dopo il potenziale reset dello stato
         currentFrame = currentAnimation.getKeyFrame(stateTime);
 
-        // 4. RENDERING GRAFICO
+        // ==========================================
+        // FASE 4: RENDERING GRAFICO
+        // ==========================================
         ScreenUtils.clear(0.53f, 0.81f, 0.99f, 1f);
         batch.begin();
         batch.draw(background, 0, -50, screenWidth, 810);
@@ -371,7 +376,6 @@ public class GameMain extends ApplicationAdapter {
         }
         sr.end();
 
-
         batch.begin();
         batch.draw(baguetteTexture, baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
         batch.draw(
@@ -380,28 +384,24 @@ public class GameMain extends ApplicationAdapter {
             currentFrame.getWidth(), currentFrame.getHeight(),
             0, 0,
             currentFrame.getWidth(), currentFrame.getHeight(),
-            flipX, false // Passiamo flipX qui per girarlo orizzontalmente
+            flipX, false
         );
-        if (score < 10){
-            scoreFont.draw(batch, "Score: 000" + score, screenWidth - 200, screenHeight - 20);
-        }else if (score < 100) {
-            scoreFont.draw(batch, "Score: 00" + score, screenWidth - 200, screenHeight - 20);
-        }else if (score < 1000){
-            scoreFont.draw(batch, "Score: 0" + score, screenWidth - 200, screenHeight - 20);
 
-        } else if (score < 10000) {
-            scoreFont.draw(batch, "Score: " + score, screenWidth - 200, screenHeight - 20);
-        }else {
-            scoreFont.draw(batch, "Score: 9999", screenWidth - 200, screenHeight - 20);
-        }
+        // Grafica dello Score ottimizzata in scannabilità
+        if (score < 10) scoreFont.draw(batch, "Score: 000" + score, screenWidth - 200, screenHeight - 20);
+        else if (score < 100) scoreFont.draw(batch, "Score: 00" + score, screenWidth - 200, screenHeight - 20);
+        else if (score < 1000) scoreFont.draw(batch, "Score: 0" + score, screenWidth - 200, screenHeight - 20);
+        else if (score < 10000) scoreFont.draw(batch, "Score: " + score, screenWidth - 200, screenHeight - 20);
+        else scoreFont.draw(batch, "Score: 9999", screenWidth - 200, screenHeight - 20);
+
         if (score == 0){
-
             tutorialFont.draw(batch, "Use A and D or LEFT \nand RIGHT arrows for move", 10, 60);
             tutorialFont.draw(batch, "Use W or UP \narrow to \njump", 400, 160);
             tutorialFont.draw(batch, "Touch the \nbaguette to \neat it", 900, 75);
         }
         batch.end();
     }
+
 
     @Override
     public void dispose() {
