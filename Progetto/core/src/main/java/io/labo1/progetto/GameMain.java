@@ -357,6 +357,7 @@ public class GameMain extends ApplicationAdapter {
         // Recupera il frame corretto dopo il potenziale reset dello stato
         currentFrame = currentAnimation.getKeyFrame(stateTime);
 
+
         // ==========================================
         // FASE 4: RENDERING GRAFICO
         // ==========================================
@@ -400,6 +401,22 @@ public class GameMain extends ApplicationAdapter {
         batch.end();
     }
 
+    private boolean isGrounded() {
+        // Tocca il terreno verde?
+        if (playerBounds.overlaps(groundBounds)) return true;
+
+        // Tocca una delle piattaforme della lista?
+        for (Platform p : platforms) {
+            // Creiamo il rettangolo della piattaforma usando i tuoi metodi get
+            com.badlogic.gdx.math.Rectangle pBounds = new com.badlogic.gdx.math.Rectangle(p.getX(), p.getY(), p.getWidth(), p.getHeight());
+
+            // Controlliamo l'overlap e la Y usando il tuo oggetto player
+            if (playerBounds.overlaps(pBounds) && player.getY() >= p.getY() + p.getHeight() - 8f) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     @Override
     public void dispose() {
