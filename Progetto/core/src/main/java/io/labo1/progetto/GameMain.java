@@ -33,6 +33,8 @@ public class GameMain extends ApplicationAdapter {
     private Animation<Texture> deathAnimation;
     private ArrayList<Texture> playerTextureJump;
     private Animation<Texture> jumpAnimation;
+    private ArrayList<Texture> neruTexture;
+    private Animation<Texture> neruAnimation;
     private ShapeRenderer sr;
     private BitmapFont scoreFont;
     FreeTypeFontGenerator gen;
@@ -58,6 +60,7 @@ public class GameMain extends ApplicationAdapter {
     private Rectangle playerBounds;
     private Rectangle groundBounds;
     private Array<Platform> platforms;
+    private Array<Ostacle> ostacles;
 
     private float dt;
     private float vel;
@@ -108,7 +111,11 @@ public class GameMain extends ApplicationAdapter {
             playerTextureJump.add(new Texture(path+ "jump" + (i + 1)+".png"));
         }
         jumpAnimation = new Animation<>(0.15f, playerTextureJump.toArray(new Texture[0]));
-
+        neruTexture = new ArrayList<>();
+        for (int i = 0; i < 18; i++) {
+            neruTexture.add(new Texture("neru/"+ "neru_" + (i + 1)+".png"));
+        }
+        neruAnimation = new Animation<>(0.15f, neruTexture.toArray(new Texture[0]));
         // Imposta i loop dove serve
         defaultAnimation.setPlayMode(Animation.PlayMode.LOOP);
         runAnimation.setPlayMode(Animation.PlayMode.LOOP);
@@ -160,6 +167,15 @@ public class GameMain extends ApplicationAdapter {
         platforms.add(new Platform(600, 440, 470, 20));
         platforms.add(new Platform(10, 520, 350, 20));
         platforms.add(new Platform(550, 90, 200, 60));
+
+        ostacles= new Array<Ostacle>();
+        ostacles.add(new Ostacle(620, 460, 50, 67, true, 1.5f));
+        // --- OSTACOLI SUL TERRENO BASE (Quota Y = 90) ---
+        // Baguette a X=10-> Ostacoli posizionati in zone vuote
+        ostacles.add(new Ostacle(10, 90, 40, 40, true, 1.0f));
+
+        // Quota 540: Baguette a X=15 -> Ostacolo spostato all'estrema destra della struttura
+        ostacles.add(new Ostacle(180, 540, 30, 55, true, 2.0f));
 
         // Caricamento diretto nel metodo Create()
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Music/teto-territory-8-BITS.mp3"));
@@ -367,7 +383,7 @@ public class GameMain extends ApplicationAdapter {
         batch.end();
 
         sr.begin(ShapeRenderer.ShapeType.Filled);
-        sr.setColor(78f/ 255f, 235f/ 255f, 179f/ 255f, 1f);
+        sr.setColor(50f/ 255f, 205f/ 255f, 50f/ 255f, 1f);
         sr.rect(0, 0, Gdx.graphics.getWidth(), 90);
         sr.setColor(142f/ 255f, 142f/ 255f, 142f/ 255f, 1f);
         for (Platform p : platforms) {
@@ -377,6 +393,9 @@ public class GameMain extends ApplicationAdapter {
 
         batch.begin();
         batch.draw(baguetteTexture, baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
+        for (Ostacle o : ostacles){
+            batch.draw(neruTexture.get(0), o.getX(), o.getY());
+        }
         batch.draw(
             currentFrame,
             player.getX(), player.getY(),
@@ -397,6 +416,7 @@ public class GameMain extends ApplicationAdapter {
             tutorialFont.draw(batch, "Use A and D or LEFT \nand RIGHT arrows for move", 10, 60);
             tutorialFont.draw(batch, "Use W or UP \narrow to \njump", 400, 160);
             tutorialFont.draw(batch, "Touch the \nbaguette to \neat it", 900, 75);
+            tutorialFont.draw(batch, "Don't touch \nthe enemy", 10, 230);
         }
         batch.end();
     }
@@ -438,6 +458,9 @@ public class GameMain extends ApplicationAdapter {
             tex.dispose();
         }
         for (Texture tex : playerTextureJump) {
+            tex.dispose();
+        }
+        for (Texture tex : neruTexture){
             tex.dispose();
         }
 
