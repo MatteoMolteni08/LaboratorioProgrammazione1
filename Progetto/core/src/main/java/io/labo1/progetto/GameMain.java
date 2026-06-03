@@ -161,15 +161,13 @@ public class GameMain extends ApplicationAdapter {
         platforms.add(new Platform(600, 440, 470, 20));
         platforms.add(new Platform(10, 520, 350, 20));
         platforms.add(new Platform(550, 90, 200, 60));
+        platforms.add(new Platform(180, 540, 30, 90));
 
         ostacles= new Array<Ostacle>();
         ostacles.add(new Ostacle(620, 460, 50, 50, true, 0.5f));
         // --- OSTACOLI SUL TERRENO BASE (Quota Y = 90) ---
         // Baguette a X=10-> Ostacoli posizionati in zone vuote
         ostacles.add(new Ostacle(10, 90, 40, 40, true, 0.5f));
-
-        // Quota 540: Baguette a X=15 -> Ostacolo spostato all'estrema destra della struttura
-        ostacles.add(new Ostacle(180, 540, 30, 55, true, 0.5f));
 
         // Caricamento diretto nel metodo Create()
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Music/teto-territory-8-BITS.mp3"));
