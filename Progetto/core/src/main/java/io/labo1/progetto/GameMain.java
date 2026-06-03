@@ -33,8 +33,7 @@ public class GameMain extends ApplicationAdapter {
     private Animation<Texture> deathAnimation;
     private ArrayList<Texture> playerTextureJump;
     private Animation<Texture> jumpAnimation;
-    private ArrayList<Texture> neruTexture;
-    private Animation<Texture> neruAnimation;
+
     private ShapeRenderer sr;
     private BitmapFont scoreFont;
     FreeTypeFontGenerator gen;
@@ -111,12 +110,7 @@ public class GameMain extends ApplicationAdapter {
             playerTextureJump.add(new Texture(path+ "jump" + (i + 1)+".png"));
         }
         jumpAnimation = new Animation<>(0.15f, playerTextureJump.toArray(new Texture[0]));
-        neruTexture = new ArrayList<>();
-        for (int i = 0; i < 18; i++) {
-            neruTexture.add(new Texture("neru/"+ "neru_" + (i + 1)+".png"));
-        }
-        neruAnimation = new Animation<>(0.15f, neruTexture.toArray(new Texture[0]));
-        // Imposta i loop dove serve
+
         defaultAnimation.setPlayMode(Animation.PlayMode.LOOP);
         runAnimation.setPlayMode(Animation.PlayMode.LOOP);
         jumpAnimation.setPlayMode(Animation.PlayMode.NORMAL);  // Salto e morte di solito
@@ -169,13 +163,13 @@ public class GameMain extends ApplicationAdapter {
         platforms.add(new Platform(550, 90, 200, 60));
 
         ostacles= new Array<Ostacle>();
-        ostacles.add(new Ostacle(620, 460, 50, 67, true, 1.5f));
+        ostacles.add(new Ostacle(620, 460, 50, 50, true, 1.0f));
         // --- OSTACOLI SUL TERRENO BASE (Quota Y = 90) ---
         // Baguette a X=10-> Ostacoli posizionati in zone vuote
         ostacles.add(new Ostacle(10, 90, 40, 40, true, 1.0f));
 
         // Quota 540: Baguette a X=15 -> Ostacolo spostato all'estrema destra della struttura
-        ostacles.add(new Ostacle(180, 540, 30, 55, true, 2.0f));
+        ostacles.add(new Ostacle(180, 540, 30, 55, true, 1.0f));
 
         // Caricamento diretto nel metodo Create()
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Music/teto-territory-8-BITS.mp3"));
@@ -355,6 +349,44 @@ public class GameMain extends ApplicationAdapter {
             int[] coordinate = baguette.getPosPos().get(baguetteIndex);
             baguetteBounds.x = coordinate[0];
             baguetteBounds.y = coordinate[1];
+            if (player.getHealth() < 100){
+                if (player.getHealth() <= 90){
+                    player.setHealth(player.getHealth() + 10);
+                }else{
+                    player.setHealth(100);
+                }
+            }
+        }
+
+        for (Ostacle o : ostacles){
+            if (o.toRectangle().overlaps(playerBounds)){
+                o.DamageDealing(player);
+                // 1. Calcola l'entità della sovrapposizione tra i due rettangoli
+                float overlapX = Math.min(playerBounds.x + playerBounds.width, o.getX() + o.getWidth())
+                    - Math.max(playerBounds.x, o.toRectangle().x);
+                float overlapY = Math.min(playerBounds.y + playerBounds.height, o.toRectangle().y + o.toRectangle().height)
+                    - Math.max(playerBounds.y, o.toRectangle().y);
+
+                // 2. Forza del rimbalzo fissa (espressa in pixel) basata sulla velocità del player
+                float bounceForce = player.getSpeed() * 0.25f;
+
+                // 3. Determina il lato dell'impatto e applica lo sbalzo
+                if (overlapX < overlapY) {
+                    // Collisione laterale
+                    if (playerBounds.x < o.toRectangle().x) {
+                        player.setX(player.getX() - overlapX - bounceForce); // Rimbalza a sinistra
+                    } else {
+                        player.setX(player.getX() + overlapX + bounceForce); // Rimbalza a destra
+                    }
+                } else {
+                    // Collisione verticale
+                    if (playerBounds.y < o.toRectangle().y) {
+                        player.setY(player.getY() - overlapY - bounceForce); // Rimbalza in basso
+                    } else {
+                        player.setY(player.getY() + overlapY + bounceForce); // Rimbalza in alto (es. salto sopra l'ostacolo)
+                    }
+                }
+            }
         }
 
         // Gestione cambio di stato animazione
@@ -389,13 +421,14 @@ public class GameMain extends ApplicationAdapter {
         for (Platform p : platforms) {
             sr.rect(p.getX(), p.getY(), p.getWidth(), p.getHeight());
         }
+        sr.setColor(Color.YELLOW);
+        for (Ostacle o : ostacles){
+            sr.rect(o.getX(), o.getY(), o.getWidth(), o.getHeight());
+        }
         sr.end();
 
         batch.begin();
         batch.draw(baguetteTexture, baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
-        for (Ostacle o : ostacles){
-            batch.draw(neruTexture.get(0), o.getX(), o.getY());
-        }
         batch.draw(
             currentFrame,
             player.getX(), player.getY(),
@@ -412,11 +445,19 @@ public class GameMain extends ApplicationAdapter {
         else if (score < 10000) scoreFont.draw(batch, "Score: " + score, screenWidth - 200, screenHeight - 20);
         else scoreFont.draw(batch, "Score: 9999", screenWidth - 200, screenHeight - 20);
 
+        if (player.getHealth() == 100){
+            scoreFont.draw(batch, "Life: " + player.getHealth(), 10, screenHeight-20);
+        } else if (player.getHealth() > 9) {
+            scoreFont.draw(batch, "Life: 0" + player.getHealth(), 10, screenHeight-20);
+        }else{
+            scoreFont.draw(batch, "Life: 00" + player.getHealth(), 10, screenHeight-20);
+        }
+
         if (score == 0){
             tutorialFont.draw(batch, "Use A and D or LEFT \nand RIGHT arrows for move", 10, 60);
             tutorialFont.draw(batch, "Use W or UP \narrow to \njump", 400, 160);
             tutorialFont.draw(batch, "Touch the \nbaguette to \neat it", 900, 75);
-            tutorialFont.draw(batch, "Don't touch \nthe enemy", 10, 230);
+            tutorialFont.draw(batch, "Don't touch \nthe obstacles", 10, 230);
         }
         batch.end();
     }
@@ -460,9 +501,7 @@ public class GameMain extends ApplicationAdapter {
         for (Texture tex : playerTextureJump) {
             tex.dispose();
         }
-        for (Texture tex : neruTexture){
-            tex.dispose();
-        }
+
 
         // 3. Font e Generatori
         scoreFont.dispose();
