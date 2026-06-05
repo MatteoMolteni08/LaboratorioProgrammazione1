@@ -59,7 +59,6 @@ public class GameMain extends ApplicationAdapter {
     private Rectangle playerBounds;
     private Rectangle groundBounds;
     private Array<Platform> platforms;
-    private Array<Ostacle> ostacles;
 
     private float dt;
     private float vel;
@@ -75,6 +74,7 @@ public class GameMain extends ApplicationAdapter {
     private Sound jumpSound;
     private Sound bonkSound;
     private Sound eating;
+    private Sound deadSOund;
     private Texture background;
     private Baguette baguette;
     private Random rand;
@@ -82,6 +82,7 @@ public class GameMain extends ApplicationAdapter {
     private String gameStat;
     private Texture bgMenu;
     private boolean flipX;
+    private float gameTimer; // Il tempo totale della partita in secondi
 
     @Override
     public void create() {
@@ -163,12 +164,6 @@ public class GameMain extends ApplicationAdapter {
         platforms.add(new Platform(550, 90, 200, 60));
         platforms.add(new Platform(180, 540, 30, 90));
 
-        ostacles= new Array<Ostacle>();
-        ostacles.add(new Ostacle(620, 460, 50, 50, true, 0.5f));
-        // --- OSTACOLI SUL TERRENO BASE (Quota Y = 90) ---
-        // Baguette a X=10-> Ostacoli posizionati in zone vuote
-        ostacles.add(new Ostacle(10, 90, 40, 40, true, 0.5f));
-
         // Caricamento diretto nel metodo Create()
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Music/teto-territory-8-BITS.mp3"));
         // Configurazione
@@ -178,10 +173,12 @@ public class GameMain extends ApplicationAdapter {
         jumpSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/jump.wav"));
         bonkSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/bonk.wav"));
         eating = Gdx.audio.newSound(Gdx.files.internal("Sounds/nom-nom.wav"));
+        deadSOund = Gdx.audio.newSound(Gdx.files.internal("Sounds/teetoo.wav"));
 
         gameStat = "menu";
         bgMenu = new Texture("teto_wallpaper.jpg");
         flipX = false; // false = guarda a destra, true = guarda a sinistra
+        gameTimer = 30f;
     }
 
     @Override
@@ -189,7 +186,7 @@ public class GameMain extends ApplicationAdapter {
         dt = Gdx.graphics.getDeltaTime();
         if (gameStat == "menu"){
             menu();
-        } else if (gameStat == "play") {
+        } else if (gameStat == "play" || gameStat== "GAMEOVER") {
             gameLevel();
         }
     }
@@ -207,10 +204,21 @@ public class GameMain extends ApplicationAdapter {
         batch.draw(bgMenu, -10, 0);
         batch.setColor(1f,1f,1f,1f);
         batch.end();
+
+
     }
     // GameLevel è stato ottimizzato con l'AI
     public void gameLevel(){
         vel = player.speed * dt;
+
+        // Fa scorrere il timer solo se il gioco è in corso (non in GAMEOVER o MENU)
+        if (gameTimer > 0 && player.getHealth() > 0) {
+            gameTimer -= dt;
+        }else if (gameTimer <= 0 || player.getHealth() <= 0 && gameStat != "GAMEOVER") {
+            gameTimer = 0;
+            currentState = State.DEAD;
+            gameStat = "GAMEOVER";
+        }
 
         State newState = currentState;
 
@@ -218,112 +226,114 @@ public class GameMain extends ApplicationAdapter {
         stateTime += Gdx.graphics.getDeltaTime();
         Texture currentFrame = currentAnimation.getKeyFrame(stateTime);
 
-        // Calcola la velocità orizzontale desiderata in questo frame
-        float moveX = 0;
-        if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            moveX = -vel;
-            flipX = true;
-            if (!isJumping){
-                newState = State.RUNNING;
-            }
-        } else if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            moveX = vel;
-            flipX = false;
-            if (!isJumping) {
-                newState = State.RUNNING;
-            }
-        }
-        if (!isJumping && moveX == 0){
-            newState = State.IDLE;
-        }
-
-        // Calcola la velocità verticale desiderata in questo frame
-        float moveY = 0;
-        if (isJumping) {
-            if (player.getY() < maxJumpHeight + lastPlatformTouchedHeight) {
-                moveY = player.getJump() * dt;
-            } else {
-                isJumping = false;
-            }
-        } else {
-            moveY = gravity * dt; // Applica gravità
-        }
-
-        // ==========================================
-        // FASE 1: MOVIMENTO E COLLISIONE ORIZZONTALE (X)
-        // ==========================================
-        player.setX(player.getX() + moveX);
-        if (player.getX() < 0) player.setX(0);
-        if (player.getX() + 51 > screenWidth) player.setX(screenWidth - player.getWidth());
-
-        // Sincronizza la hitbox SOLO per la X prima del controllo
-        playerBounds.x = player.getX();
-        playerBounds.y = player.getY(); // Tiene conto della Y attuale reale
-
-        // Controlla la collisione laterale con OGNI piattaforma
-        for (Platform p : platforms) {
-            Rectangle pBounds = p.toRectangle(); // Evita "new Rectangle" inutile se toRectangle() ne dà già uno
-
-            if (playerBounds.overlaps(pBounds)) {
-                if (moveX > 0) {
-                    player.setX(p.getX() - playerBounds.width);
-                } else if (moveX < 0) {
-                    player.setX(p.getX() + p.getWidth());
+        if (gameStat != "GAMEOVER") {
+            // Calcola la velocità orizzontale desiderata in questo frame
+            float moveX = 0;
+            if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
+                moveX = -vel;
+                flipX = true;
+                if (!isJumping) {
+                    newState = State.RUNNING;
                 }
-                playerBounds.x = player.getX(); // Aggiorna subito dopo il blocco
+            } else if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
+                moveX = vel;
+                flipX = false;
+                if (!isJumping) {
+                    newState = State.RUNNING;
+                }
             }
-        }
+            if (!isJumping && moveX == 0) {
+                newState = State.IDLE;
+            }
 
-        // ==========================================
-        // FASE 2: MOVIMENTO E COLLISIONE VERTICALE (Y)
-        // ==========================================
-        player.setY(player.getY() + moveY);
+            // Calcola la velocità verticale desiderata in questo frame
+            float moveY = 0;
+            if (isJumping) {
+                if (player.getY() < maxJumpHeight + lastPlatformTouchedHeight) {
+                    moveY = player.getJump() * dt;
+                } else {
+                    isJumping = false;
+                }
+            } else {
+                moveY = gravity * dt; // Applica gravità
+            }
 
-        // Aggiorna la hitbox per l'asse Y mantenendo la X corretta di prima
-        playerBounds.x = player.getX();
-        playerBounds.y = player.getY();
+            // ==========================================
+            // FASE 1: MOVIMENTO E COLLISIONE ORIZZONTALE (X)
+            // ==========================================
+            player.setX(player.getX() + moveX);
+            if (player.getX() < 0) player.setX(0);
+            if (player.getX() + 51 > screenWidth) player.setX(screenWidth - player.getWidth());
 
-        // Collisione con il terreno fisso
-        if (playerBounds.overlaps(groundBounds)) {
-            player.setY(90f);
-            lastPlatformTouchedHeight = 90f;
-            isJumping = false;
+            // Sincronizza la hitbox SOLO per la X prima del controllo
+            playerBounds.x = player.getX();
+            playerBounds.y = player.getY(); // Tiene conto della Y attuale reale
+
+            // Controlla la collisione laterale con OGNI piattaforma
+            for (Platform p : platforms) {
+                Rectangle pBounds = p.toRectangle(); // Evita "new Rectangle" inutile se toRectangle() ne dà già uno
+
+                if (playerBounds.overlaps(pBounds)) {
+                    if (moveX > 0) {
+                        player.setX(p.getX() - playerBounds.width);
+                    } else if (moveX < 0) {
+                        player.setX(p.getX() + p.getWidth());
+                    }
+                    playerBounds.x = player.getX(); // Aggiorna subito dopo il blocco
+                }
+            }
+
+            // ==========================================
+            // FASE 2: MOVIMENTO E COLLISIONE VERTICALE (Y)
+            // ==========================================
+            player.setY(player.getY() + moveY);
+
+            // Aggiorna la hitbox per l'asse Y mantenendo la X corretta di prima
+            playerBounds.x = player.getX();
             playerBounds.y = player.getY();
 
-            if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
-                isJumping = true;
-                jumpSound.play(1.0f);
-                newState = State.JUMPING;
-            }
-        }
+            // Collisione con il terreno fisso
+            if (playerBounds.overlaps(groundBounds)) {
+                player.setY(90f);
+                lastPlatformTouchedHeight = 90f;
+                isJumping = false;
+                playerBounds.y = player.getY();
 
-        // Controlla la collisione verticale con OGNI piattaforma
-        for (Platform p : platforms) {
-            Rectangle pBounds = p.toRectangle();
-
-            if (playerBounds.overlaps(pBounds)) {
-                // Usa Math.abs(moveY) come tolleranza dinamica invece di 8f fisso
-                float tolerance = Math.max(8f, Math.abs(moveY));
-
-                // Caso A: Caduta dall'alto (Atterraggio)
-                if (moveY <= 0 && (player.getY() - moveY) >= p.getY() + p.getHeight() - tolerance) {
-                    player.setY(p.getY() + p.getHeight());
-                    lastPlatformTouchedHeight = p.getY() + p.getHeight();
-                    isJumping = false;
-                    playerBounds.y = player.getY();
-
-                    if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
-                        isJumping = true;
-                        jumpSound.play(1.0f);
-                        newState = State.JUMPING;
-                    }
+                if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
+                    isJumping = true;
+                    jumpSound.play(1.0f);
+                    newState = State.JUMPING;
                 }
-                // Caso B: Salto da sotto (Testata)
-                else if (moveY > 0) {
-                    bonkSound.play();
-                    player.setY(p.getY() - playerBounds.height);
-                    isJumping = false;
-                    playerBounds.y = player.getY();
+            }
+
+            // Controlla la collisione verticale con OGNI piattaforma
+            for (Platform p : platforms) {
+                Rectangle pBounds = p.toRectangle();
+
+                if (playerBounds.overlaps(pBounds)) {
+                    // Usa Math.abs(moveY) come tolleranza dinamica invece di 8f fisso
+                    float tolerance = Math.max(8f, Math.abs(moveY));
+
+                    // Caso A: Caduta dall'alto (Atterraggio)
+                    if (moveY <= 0 && (player.getY() - moveY) >= p.getY() + p.getHeight() - tolerance) {
+                        player.setY(p.getY() + p.getHeight());
+                        lastPlatformTouchedHeight = p.getY() + p.getHeight();
+                        isJumping = false;
+                        playerBounds.y = player.getY();
+
+                        if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
+                            isJumping = true;
+                            jumpSound.play(1.0f);
+                            newState = State.JUMPING;
+                        }
+                    }
+                    // Caso B: Salto da sotto (Testata)
+                    else if (moveY > 0) {
+                        bonkSound.play();
+                        player.setY(p.getY() - playerBounds.height);
+                        isJumping = false;
+                        playerBounds.y = player.getY();
+                    }
                 }
             }
         }
@@ -338,6 +348,7 @@ public class GameMain extends ApplicationAdapter {
         if (playerBounds.overlaps(baguetteBounds)) {
             int num;
             eating.play();
+            gameTimer += 5f; // Raccogliere una baguette regala 5 secondi extra!
             do {
                 num = rand.nextInt(baguette.getPosPos().size());
             } while (num == baguetteIndex);
@@ -352,37 +363,6 @@ public class GameMain extends ApplicationAdapter {
                     player.setHealth(player.getHealth() + 10);
                 }else{
                     player.setHealth(100);
-                }
-            }
-        }
-
-        for (Ostacle o : ostacles){
-            if (o.toRectangle().overlaps(playerBounds)){
-                o.DamageDealing(player);
-                // 1. Calcola l'entità della sovrapposizione tra i due rettangoli
-                float overlapX = Math.min(playerBounds.x + playerBounds.width, o.getX() + o.getWidth())
-                    - Math.max(playerBounds.x, o.toRectangle().x);
-                float overlapY = Math.min(playerBounds.y + playerBounds.height, o.toRectangle().y + o.toRectangle().height)
-                    - Math.max(playerBounds.y, o.toRectangle().y);
-
-                // 2. Forza del rimbalzo fissa (espressa in pixel) basata sulla velocità del player
-                float bounceForce = player.getSpeed() * 0.25f;
-
-                // 3. Determina il lato dell'impatto e applica lo sbalzo
-                if (overlapX < overlapY) {
-                    // Collisione laterale
-                    if (playerBounds.x < o.toRectangle().x) {
-                        player.setX(player.getX() - overlapX - bounceForce); // Rimbalza a sinistra
-                    } else {
-                        player.setX(player.getX() + overlapX + bounceForce); // Rimbalza a destra
-                    }
-                } else {
-                    // Collisione verticale
-                    if (playerBounds.y < o.toRectangle().y) {
-                        player.setY(player.getY() - overlapY - bounceForce); // Rimbalza in basso
-                    } else {
-                        player.setY(player.getY() + overlapY + bounceForce); // Rimbalza in alto (es. salto sopra l'ostacolo)
-                    }
                 }
             }
         }
@@ -419,10 +399,7 @@ public class GameMain extends ApplicationAdapter {
         for (Platform p : platforms) {
             sr.rect(p.getX(), p.getY(), p.getWidth(), p.getHeight());
         }
-        sr.setColor(Color.YELLOW);
-        for (Ostacle o : ostacles){
-            sr.rect(o.getX(), o.getY(), o.getWidth(), o.getHeight());
-        }
+
         sr.end();
 
         batch.begin();
@@ -443,6 +420,8 @@ public class GameMain extends ApplicationAdapter {
         else if (score < 10000) scoreFont.draw(batch, "Score: " + score, screenWidth - 200, screenHeight - 20);
         else scoreFont.draw(batch, "Score: 9999", screenWidth - 200, screenHeight - 20);
 
+        scoreFont.draw(batch, "Time left: " + Math.round(gameTimer), (float) screenWidth /2 - 20, screenHeight-20);
+
         if (player.getHealth() == 100){
             scoreFont.draw(batch, "Life: " + player.getHealth(), 10, screenHeight-20);
         } else if (player.getHealth() > 9) {
@@ -457,24 +436,10 @@ public class GameMain extends ApplicationAdapter {
             tutorialFont.draw(batch, "Touch the \nbaguette to \neat it", 900, 75);
             tutorialFont.draw(batch, "Don't touch \nthe obstacles", 10, 230);
         }
-        batch.end();
-    }
-
-    private boolean isGrounded() {
-        // Tocca il terreno verde?
-        if (playerBounds.overlaps(groundBounds)) return true;
-
-        // Tocca una delle piattaforme della lista?
-        for (Platform p : platforms) {
-            // Creiamo il rettangolo della piattaforma usando i tuoi metodi get
-            com.badlogic.gdx.math.Rectangle pBounds = new com.badlogic.gdx.math.Rectangle(p.getX(), p.getY(), p.getWidth(), p.getHeight());
-
-            // Controlliamo l'overlap e la Y usando il tuo oggetto player
-            if (playerBounds.overlaps(pBounds) && player.getY() >= p.getY() + p.getHeight() - 8f) {
-                return true;
-            }
+        if (gameStat == "GAMEOVER"){
+            scoreFont.draw(batch, "GAME OVER", 520, (float)screenWidth / 2 -20);
         }
-        return false;
+        batch.end();
     }
 
     @Override
