@@ -43,6 +43,10 @@ public class GameMain extends ApplicationAdapter {
     FreeTypeFontParameter tutorialParam;
     private BitmapFont tutorialFont;
 
+    private FreeTypeFontGenerator titleGen;
+    private FreeTypeFontParameter titleParam;
+    private BitmapFont titleFont;
+
     // Variabili di controllo
     private Animation<Texture> currentAnimation; // Punta all'animazione attiva ora
     private float stateTime = 0f;
@@ -81,6 +85,7 @@ public class GameMain extends ApplicationAdapter {
     private int baguetteIndex;
     private String gameStat;
     private Texture bgMenu;
+    private Texture titleLogo;
     private boolean flipX;
     private float gameTimer; // Il tempo totale della partita in secondi
 
@@ -96,45 +101,57 @@ public class GameMain extends ApplicationAdapter {
             playerTexture.add(new Texture(path + "default_pose" + x + ".png"));
         }
         defaultAnimation = new Animation<>(0.15f, playerTexture.toArray(new Texture[0]));
+
         playerTextureRun = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
-            playerTextureRun.add(new Texture(path+ "run" + (i + 1)+".png"));
+            playerTextureRun.add(new Texture(path + "run" + (i + 1) + ".png"));
         }
         runAnimation = new Animation<>(0.1f, playerTextureRun.toArray(new Texture[0]));
-        playerTextureDeath= new ArrayList<>();
+
+        playerTextureDeath = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
-            playerTextureDeath.add(new Texture(path+ "death" + (i + 1)+".png"));
+            playerTextureDeath.add(new Texture(path + "death" + (i + 1) + ".png"));
         }
         deathAnimation = new Animation<>(0.25f, playerTextureDeath.toArray(new Texture[0]));
-        playerTextureJump= new ArrayList<>();
+
+        playerTextureJump = new ArrayList<>();
         for (int i = 0; i < 9; i++) {
-            playerTextureJump.add(new Texture(path+ "jump" + (i + 1)+".png"));
+            playerTextureJump.add(new Texture(path + "jump" + (i + 1) + ".png"));
         }
         jumpAnimation = new Animation<>(0.15f, playerTextureJump.toArray(new Texture[0]));
 
         defaultAnimation.setPlayMode(Animation.PlayMode.LOOP);
         runAnimation.setPlayMode(Animation.PlayMode.LOOP);
-        jumpAnimation.setPlayMode(Animation.PlayMode.NORMAL);  // Salto e morte di solito
-        deathAnimation.setPlayMode(Animation.PlayMode.NORMAL); // si riproducono una volta sola
+        jumpAnimation.setPlayMode(Animation.PlayMode.NORMAL);
+        deathAnimation.setPlayMode(Animation.PlayMode.NORMAL);
 
         // All'inizio il personaggio è fermo
         currentAnimation = defaultAnimation;
 
-        scoreFont = new BitmapFont();
-        scoreFont.setColor(Color.BLACK);
-        scoreFont.getData().setScale(1.8f);
+        // Inizializzazione generatori font
         gen = new FreeTypeFontGenerator(Gdx.files.internal("Fonts/DS-DIGIB.TTF"));
         tutorialGen = new FreeTypeFontGenerator(Gdx.files.internal("Fonts/1up.ttf"));
+        titleGen = new FreeTypeFontGenerator(Gdx.files.internal("Fonts/impact.ttf"));
+
+        // Inizializzazione parametri (CORRETTO!)
+        param = new FreeTypeFontParameter(); // Assicurati sia istanziato se non globale
         tutorialParam = new FreeTypeFontParameter();
+        titleParam = new FreeTypeFontParameter(); // <- RISOLTO IL NULL POINTER
+
         param.size = 32;
         tutorialParam.size = 15;
+        titleParam.size = 50;
+
+        // Generazione effettiva dei font dai file ttf
+        titleFont = titleGen.generateFont(titleParam);
         scoreFont = gen.generateFont(param);
         tutorialFont = tutorialGen.generateFont(tutorialParam);
         tutorialFont.setColor(Color.BLACK);
+        titleFont.setColor(Color.RED);
 
         player = new Player(90f, 100f, 100, 220, 220);
 
-
+        titleLogo = new Texture("teto_logo.png");
         baguetteTexture = new Texture("baguette.png");
         baguette = new Baguette(1000f, 90f, 50f);
         background = new Texture("bg.jpg");
@@ -146,15 +163,16 @@ public class GameMain extends ApplicationAdapter {
         screenWidth = Gdx.graphics.getWidth();
         screenHeight = Gdx.graphics.getHeight();
 
-        playerBounds = new Rectangle(player.toRectangle());
-        groundBounds = new Rectangle(0, 0, Gdx.graphics.getWidth(),90);
-        baguetteBounds = new Rectangle(baguette.getPosPos().get(baguetteIndex)[0],baguette.getPosPos().get(baguetteIndex)[1], 40,40);
+        // Assegnazione hitbox corretta per libGDX (CORRETTO!)
+        playerBounds = player.toRectangle();
+        groundBounds = new Rectangle(0, 0, Gdx.graphics.getWidth(), 90);
+        baguetteBounds = new Rectangle(baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1], 40, 40);
 
         isJumping = false;
         maxJumpHeight = 160;
         platforms = new Array<Platform>();
 
-        // Aggiungi le tue piattaforme (x, y, larghezza, altezza)
+        // Aggiungi le tue piattaforme
         platforms.add(new Platform(400, 180, 150, 20));
         platforms.add(new Platform(650, 280, 200, 20));
         platforms.add(new Platform(100, 320, 180, 20));
@@ -164,11 +182,10 @@ public class GameMain extends ApplicationAdapter {
         platforms.add(new Platform(550, 90, 200, 60));
         platforms.add(new Platform(180, 540, 30, 90));
 
-        // Caricamento diretto nel metodo Create()
+        // Caricamento audio
         bgMusic = Gdx.audio.newMusic(Gdx.files.internal("Music/teto-territory-8-BITS.mp3"));
-        // Configurazione
-        bgMusic.setVolume(0.5f); // 0.0 → 1.0
-        bgMusic.setLooping(true); // true = riparte automaticamente
+        bgMusic.setVolume(0.5f);
+        bgMusic.setLooping(true);
 
         jumpSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/jump.wav"));
         bonkSound = Gdx.audio.newSound(Gdx.files.internal("Sounds/bonk.wav"));
@@ -177,9 +194,10 @@ public class GameMain extends ApplicationAdapter {
 
         gameStat = "menu";
         bgMenu = new Texture("teto_wallpaper.jpg");
-        flipX = false; // false = guarda a destra, true = guarda a sinistra
+        flipX = false;
         gameTimer = 30f;
     }
+
 
     @Override
     public void render() {
@@ -229,6 +247,8 @@ public class GameMain extends ApplicationAdapter {
 
         // Disegna la scritta "GIOCA" centrata nel pulsante
         batch.begin();
+        batch.draw(titleLogo, (screenWidth-200)/2, screenHeight-220, 200, 200);
+        titleFont.draw(batch, "Teto: Baguette Rush", (screenWidth-400)/2, screenHeight - 250);
         // Puoi usare scoreFont o tutorialFont. Modifica i valori finali (+60, +40) per centrare il testo
         scoreFont.draw(batch, "GIOCA", btnX + 60, btnY + 40);
         batch.end();
@@ -481,6 +501,7 @@ public class GameMain extends ApplicationAdapter {
         background.dispose();
         baguetteTexture.dispose();
         bgMenu.dispose();
+        titleLogo.dispose();
 
         // 2. Texture dei cicli (Animazioni)
         for (Texture tex : playerTexture) {
@@ -502,6 +523,8 @@ public class GameMain extends ApplicationAdapter {
         tutorialFont.dispose();
         gen.dispose();
         tutorialGen.dispose();
+        titleGen.dispose();
+        titleFont.dispose();
 
         // 4. Audio
         bgMusic.dispose();
