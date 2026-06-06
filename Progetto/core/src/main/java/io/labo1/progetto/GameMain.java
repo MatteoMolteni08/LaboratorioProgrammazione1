@@ -105,7 +105,7 @@ public class GameMain extends ApplicationAdapter {
         for (int i = 0; i < 4; i++) {
             playerTextureDeath.add(new Texture(path+ "death" + (i + 1)+".png"));
         }
-        deathAnimation = new Animation<>(0.16f, playerTextureDeath.toArray(new Texture[0]));
+        deathAnimation = new Animation<>(0.25f, playerTextureDeath.toArray(new Texture[0]));
         playerTextureJump= new ArrayList<>();
         for (int i = 0; i < 9; i++) {
             playerTextureJump.add(new Texture(path+ "jump" + (i + 1)+".png"));
@@ -191,36 +191,67 @@ public class GameMain extends ApplicationAdapter {
         }
     }
 
-    public void menu(){
+    public void menu() {
         ScreenUtils.clear(0f, 0f, 0f, 0f);
 
-        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)){
-            gameStat = "play";
-            bgMusic.play();
+        // Coordinate e dimensioni del pulsante "Gioca"
+        float btnX = 440; // CENTRATO: (1080 - 200) / 2
+        float btnY = 250; // Altezza da terra (puoi alzarlo o abbassarlo a piacimento)
+        float btnW = 200; // Larghezza del pulsante
+        float btnH = 60;  // Altezza del pulsante
+
+        // --- GESTIONE CLICK SUL PULSANTE ---
+        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            float mouseX = Gdx.input.getX();
+            // Inversione della Y di libGDX per allinearla alla telecamera del gioco
+            float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
+
+            // Verifica se il mouse si trova dentro il rettangolo del pulsante
+            if (mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
+                gameStat = "play"; // Fai partire il gioco (assicurati che sia "play" o "PLAYING")
+                bgMusic.play();
+            }
         }
 
+        // --- RENDERING GRAFICO ---
         batch.begin();
-        batch.setColor(1f,1f,1f,0.5f);
+        // Disegna lo sfondo del menu
+        batch.setColor(1f, 1f, 1f, 0.5f);
         batch.draw(bgMenu, -10, 0);
-        batch.setColor(1f,1f,1f,1f);
+        batch.setColor(1f, 1f, 1f, 1f);
         batch.end();
 
+        // Disegna la forma geometrica del pulsante sopra lo sfondo
+        sr.begin(ShapeRenderer.ShapeType.Filled);
+        sr.setColor(Color.RED); // Colore rosso tipico di Teto
+        sr.rect(btnX, btnY, btnW, btnH);
+        sr.end();
 
+        // Disegna la scritta "GIOCA" centrata nel pulsante
+        batch.begin();
+        // Puoi usare scoreFont o tutorialFont. Modifica i valori finali (+60, +40) per centrare il testo
+        scoreFont.draw(batch, "GIOCA", btnX + 60, btnY + 40);
+        batch.end();
     }
+
+
     // GameLevel è stato ottimizzato con l'AI
     public void gameLevel(){
         vel = player.speed * dt;
 
+        State newState = currentState;
+
         // Fa scorrere il timer solo se il gioco è in corso (non in GAMEOVER o MENU)
         if (gameTimer > 0 && player.getHealth() > 0) {
             gameTimer -= dt;
-        }else if (gameTimer <= 0 || player.getHealth() <= 0 && gameStat != "GAMEOVER") {
+        }else if (gameTimer <= 0 || player.getHealth() <= 0) {
             gameTimer = 0;
-            currentState = State.DEAD;
-            gameStat = "GAMEOVER";
+            if (gameStat != "GAMEOVER") {
+                newState = State.DEAD;
+                gameStat = "GAMEOVER";
+                deadSOund.play(1.0f);
+            }
         }
-
-        State newState = currentState;
 
         // 1. GESTIONE ANIMAZIONE (Unificato l'incremento del tempo)
         stateTime += Gdx.graphics.getDeltaTime();
@@ -420,7 +451,7 @@ public class GameMain extends ApplicationAdapter {
         else if (score < 10000) scoreFont.draw(batch, "Score: " + score, screenWidth - 200, screenHeight - 20);
         else scoreFont.draw(batch, "Score: 9999", screenWidth - 200, screenHeight - 20);
 
-        scoreFont.draw(batch, "Time left: " + Math.round(gameTimer), (float) screenWidth /2 - 20, screenHeight-20);
+        scoreFont.draw(batch, "Time left: " + Math.round(gameTimer), (float) screenWidth /2 - 100, screenHeight-20);
 
         if (player.getHealth() == 100){
             scoreFont.draw(batch, "Life: " + player.getHealth(), 10, screenHeight-20);
@@ -434,7 +465,7 @@ public class GameMain extends ApplicationAdapter {
             tutorialFont.draw(batch, "Use A and D or LEFT \nand RIGHT arrows for move", 10, 60);
             tutorialFont.draw(batch, "Use W or UP \narrow to \njump", 400, 160);
             tutorialFont.draw(batch, "Touch the \nbaguette to \neat it", 900, 75);
-            tutorialFont.draw(batch, "Don't touch \nthe obstacles", 10, 230);
+            tutorialFont.draw(batch, "Prendi la baguette prima \ndello scadere del tempo \ne muoia di fame", 400, screenHeight-50);
         }
         if (gameStat == "GAMEOVER"){
             scoreFont.draw(batch, "GAME OVER", 520, (float)screenWidth / 2 -20);
