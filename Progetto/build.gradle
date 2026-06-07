@@ -69,14 +69,27 @@ subprojects {
 eclipse.project.name = 'progettoM121' + '-parent'
 
 project(":core") {
+  apply plugin: "java-library"
+
   dependencies {
-    api "com.badlogicgames.gdx-controllers:gdx-controllers-core:$gdxControllersVersion"
+    api "com.badlogicgames.gdx:gdx:$gdxVersion"
+    api "com.badlogicgames.gdx-controllers:gdx-controllers-core:2.2.3"
+
+    // --- RIGHE DA INSERIRE PER ABILITARE GLI UNIT TEST ---
+    implementation "org.junit.jupiter:junit-jupiter-api:5.10.0"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.10.0"
+  }
+
+  // Forza Gradle a interpretare ed eseguire i test tramite JUnit 5 Platform
+  test {
+    useJUnitPlatform()
   }
 }
+
 
 project(":lwjgl3") {
   dependencies {
     implementation project(":core")
-    implementation "com.badlogicgames.gdx-controllers:gdx-controllers-desktop:$gdxControllersVersion"
+    implementation "com.badlogicgames.gdx-controllers:gdx-controllers-desktop:2.2.3"
   }
 }

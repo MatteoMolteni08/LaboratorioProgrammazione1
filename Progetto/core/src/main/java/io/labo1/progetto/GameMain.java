@@ -56,6 +56,8 @@ public class GameMain extends ApplicationAdapter {
     private Animation<Texture> currentAnimation; // Punta all'animazione attiva ora
     private float stateTime = 0f;
 
+    private int highScore;
+
     // Definiamo gli stati possibili del personaggio
     public enum State { IDLE, RUNNING, JUMPING, DEAD }
     private State currentState = State.IDLE;
@@ -210,6 +212,26 @@ public class GameMain extends ApplicationAdapter {
         bgMenu = new Texture("teto_wallpaper.jpg");
         flipX = false;
         gameTimer = 30f;
+
+        // --- LOGICA DI LETTURA (R) STANDARD JAVA ---
+        java.io.File fileRecord = new java.io.File("record.txt");
+
+        if (fileRecord.exists()) {
+            // Usiamo il costruttore try-with-resources per chiudere automaticamente il file dopo la lettura
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(fileRecord))) {
+                String linea = reader.readLine();
+                if (linea != null) {
+                    highScore = Integer.parseInt(linea.trim());
+                    Gdx.app.log("JAVA_IO", "Record letto con successo: " + highScore);
+                }
+            } catch (Exception e) {
+                highScore = 0; // In caso di file corrotto
+                Gdx.app.error("JAVA_IO_ERR", "Errore durante la lettura del file. Record resettato a 0.");
+            }
+        } else {
+            highScore = 0; // Primo avvio assoluto
+        }
+
     }
 
 
@@ -288,6 +310,20 @@ public class GameMain extends ApplicationAdapter {
                 newState = State.DEAD;
                 gameStat = "GAMEOVER";
                 deadSOund.play(1.0f);
+                // --- LOGICA DI SCRITTURA (W) STANDARD JAVA ---
+                if (score > highScore) {
+                    highScore = score; // Aggiorna la variabile locale
+
+                    java.io.File fileRecord = new java.io.File("record.txt");
+
+                    try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(fileRecord, false))) {
+                        // Convertiamo il numero in stringa prima di scriverlo per evitare caratteri speciali strani
+                        writer.write(String.valueOf(highScore));
+                        Gdx.app.log("JAVA_IO", "Nuovo record scritto su file: " + highScore);
+                    } catch (Exception e) {
+                        Gdx.app.error("JAVA_IO_ERR", "Impossibile scrivere il record su disco.");
+                    }
+                }
             }
         }
 
@@ -417,12 +453,38 @@ public class GameMain extends ApplicationAdapter {
         playerBounds.y = player.getY();
 
         if (playerBounds.overlaps(baguetteBounds)) {
-            int num;
+            int num = 0;
             eating.play();
             gameTimer += 5f; // Raccogliere una baguette regala 5 secondi extra!
-            do {
-                num = rand.nextInt(baguette.getPosPos().size());
-            } while (num == baguetteIndex);
+            int tentativi = 0;
+            boolean posizioneTrovata = false;
+
+            while (!posizioneTrovata && tentativi < 100) { // Massimo 100 tentativi
+                tentativi++;
+
+                // Prendi una coordinata a caso dalla tua lista posPos
+                int indiceCasuale = rand.nextInt(baguette.getPosPos().size());
+                int[] coord = baguette.getPosPos().get(indiceCasuale);
+
+                // I tuoi controlli di sicurezza attuali (es. non toccare ostacoli)
+                if (!playerBounds.overlaps(new Rectangle(coord[0], coord[1], baguetteBounds.width, baguetteBounds.height))) {
+                    baguetteBounds.x = coord[0];
+                    baguetteBounds.y = coord[1];
+                    posizioneTrovata = true;
+                    num = indiceCasuale;
+                }
+            }
+
+            // SE DOPO 100 TENTATIVI NON TROVA UN POSTO, FORZA LO SPAWN IN UN PUNTO SICURO DI DEFAULT
+            if (!posizioneTrovata) {
+                // Forza la prima coordinata della lista per evitare il freeze!
+                int[] coordSicura = baguette.getPosPos().get(0);
+                baguetteBounds.x = coordSicura[0];
+                baguetteBounds.y = coordSicura[1];
+                num = 0;
+
+                Gdx.app.log("WARNING", "Failsafe attivato per evitare il freeze a quota " + score);
+            }
             score += 5;
             baguetteIndex = num;
 
@@ -436,7 +498,19 @@ public class GameMain extends ApplicationAdapter {
                     player.setHealth(100);
                 }
             }
+            if (score > highScore) {
+                highScore = score;
+
+                // Scrittura immediata su file standard Java
+                java.io.File fileRecord = new java.io.File("record.txt");
+                try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(fileRecord, false))) {
+                    writer.write(String.valueOf(highScore));
+                } catch (Exception e) {
+                    Gdx.app.error("JAVA_IO_ERR", "Impossibile salvare il record a runtime.");
+                }
+            }
         }
+
 
         // Gestione cambio di stato animazione
         if (currentState != newState) {
@@ -454,7 +528,6 @@ public class GameMain extends ApplicationAdapter {
         // Recupera il frame corretto dopo il potenziale reset dello stato
         currentFrame = currentAnimation.getKeyFrame(stateTime);
 
-
         // ==========================================
         // FASE 4: RENDERING GRAFICO
         // ==========================================
@@ -470,7 +543,16 @@ public class GameMain extends ApplicationAdapter {
         for (Platform p : platforms) {
             sr.rect(p.getX(), p.getY(), p.getWidth(), p.getHeight());
         }
+        // SE SEI IN GAMEOVER, DISEGNA IL RETTANGOLO DEL PULSANTE QUI DENTRO!
+        float btnW = 250;
+        float btnH = 60;
+        float btnX = (1080 - btnW) / 2; // 415
+        float btnY = 200;
 
+        if (gameStat.equals("GAMEOVER")) {
+            sr.setColor(Color.RED); // Colore rosso del pulsante
+            sr.rect(btnX, btnY, btnW, btnH);
+        }
         sr.end();
 
         batch.begin();
@@ -491,8 +573,13 @@ public class GameMain extends ApplicationAdapter {
         else if (score < 10000) scoreFont.draw(batch, "Score: " + score, screenWidth - 200, screenHeight - 20);
         else scoreFont.draw(batch, "Score: 9999", screenWidth - 200, screenHeight - 20);
 
-        scoreFont.draw(batch, "Time left: " + Math.round(gameTimer), (float) screenWidth /2 - 100, screenHeight-20);
+        scoreFont.draw(batch, "Time left: " + Math.round(gameTimer), (float) 250, screenHeight-20);
 
+        if (highScore < 10) scoreFont.draw(batch, "High Score: 000" + highScore, screenWidth - 470, screenHeight - 20);
+        else if (highScore < 100) scoreFont.draw(batch, "High Score: 00" + highScore, screenWidth - 470, screenHeight - 20);
+        else if (highScore < 1000) scoreFont.draw(batch, "High Score: 0" + highScore, screenWidth - 470, screenHeight - 20);
+        else if (highScore < 10000) scoreFont.draw(batch, "High Score: " + highScore, screenWidth - 470, screenHeight - 20);
+        else scoreFont.draw(batch, "High Score: 9999", screenWidth - 470, screenHeight - 20);
         if (player.getHealth() == 100){
             scoreFont.draw(batch, "Life: " + player.getHealth(), 10, screenHeight-20);
         } else if (player.getHealth() > 9) {
@@ -508,13 +595,76 @@ public class GameMain extends ApplicationAdapter {
             tutorialFont.draw(batch, "Prendi la baguette prima \ndello scadere del tempo \ne muoia di fame", 400, screenHeight-50);
         }
         if (gameStat == "GAMEOVER"){
-            scoreFont.draw(batch, "GAME OVER", 520, (float)screenWidth / 2 -20);
+            scoreFont.draw(batch, "GAME OVER", btnX + 30, (float)screenWidth / 2 -20);
+
+            // --- GESTIONE CLICK SUL PULSANTE (Sicura all'interno del batch) ---
+            if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+                float mouseX = Gdx.input.getX();
+                float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
+
+                if (mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
+                    resetGame(); // Riporta le variabili allo stato iniziale
+                    gameStat = "menu";
+                }
+            } else if (gamepad !=null && gamepad.getButton(6)) {
+                resetGame();
+                gameStat = "menu";
+            }
+
+            // Disegna la scritta sopra il pulsante rosso che abbiamo fatto prima con lo sr
+            scoreFont.draw(batch, "RICOMINCIA", btnX + 30, btnY + 40);
         }
+
         batch.end();
     }
 
+    private void resetGame() {
+        // 1. Ripristina i parametri vitali di Teto e del tempo
+        player.setX(90f);
+        player.setY(100f);
+        player.setHealth(100);
+        gameTimer = 30f; // Riporta il timer a 30 secondi (o il tuo valore iniziale)
+        score = 0;       // Resetta il punteggio attuale
+        flipX = false;
+        // 2. Resetta gli stati delle animazioni fisiche
+        isJumping = false;
+        currentState = State.IDLE;
+        currentAnimation = defaultAnimation;
+        stateTime = 0f;
+
+
+        // 3. Riposiziona gli oggetti interattivi (Baguette e Ostacoli)
+        baguetteIndex = 0;
+        // Aggiorna l'hitbox iniziale della prima baguette
+        baguetteBounds.setPosition(baguette.getPosPos().get(baguetteIndex)[0], baguette.getPosPos().get(baguetteIndex)[1]);
+
+        // Se hai inserito il paracadute o vuoi rigenerare gli ostacoli a inizio mappa
+        // ostacles.clear();
+        // ostacles.add(new Ostacle(...));
+
+        // 4. Gestione Audio: Ferma eventuali suoni residui e fa ripartire la musica da capo
+        bgMusic.stop();
+        bgMusic.play();
+
+        // 5. Cambia lo stato del gioco per far ricominciare il gameplay
+        gameStat = "play";
+    }
+
+
     @Override
     public void dispose() {
+        // --- PARACADUTE DI SALVATAGGIO ALLA CHIUSURA DELLA FINESTRA ---
+        if (score > highScore) {
+            highScore = score;
+            java.io.File fileRecord = new java.io.File("record.txt");
+            try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(fileRecord, false))) {
+                writer.write(String.valueOf(highScore));
+                Gdx.app.log("JAVA_IO_CLOSE", "Gioco chiuso improvvisamente! Record salvato in extremis: " + highScore);
+            } catch (Exception e) {
+                // Silenzioso in chiusura
+            }
+        }
+
         // 1. Grafica e Rendering
         batch.dispose();
         sr.dispose();
