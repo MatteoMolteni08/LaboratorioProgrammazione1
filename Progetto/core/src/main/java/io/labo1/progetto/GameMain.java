@@ -20,6 +20,9 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFont
 import java.util.ArrayList;
 import java.util.Random;
 
+import com.badlogic.gdx.controllers.Controller;
+import com.badlogic.gdx.controllers.Controllers;
+
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class GameMain extends ApplicationAdapter {
@@ -33,6 +36,8 @@ public class GameMain extends ApplicationAdapter {
     private Animation<Texture> deathAnimation;
     private ArrayList<Texture> playerTextureJump;
     private Animation<Texture> jumpAnimation;
+
+    private Controller gamepad;
 
     private ShapeRenderer sr;
     private BitmapFont scoreFont;
@@ -94,6 +99,15 @@ public class GameMain extends ApplicationAdapter {
         rand = new Random();
         batch = new SpriteBatch();
         sr = new ShapeRenderer();
+        // --- CONTROLLO JOYSTICK ALL'AVVIO ---
+        try {
+            gamepad = Controllers.getControllers().first();
+        } catch (Exception e) {
+            gamepad = null;
+            Gdx.app.error("GAMEPAD_CRASH", "Errore critico durante il caricamento del controller. Il gioco passerà automaticamente alla sola tastiera.");
+            // Stampa la traccia dell'errore nella console di IntelliJ senza interrompere il gioco
+            e.printStackTrace();
+        }
 
         path = "teto/";
         playerTexture = new ArrayList<>();
@@ -202,6 +216,7 @@ public class GameMain extends ApplicationAdapter {
     @Override
     public void render() {
         dt = Gdx.graphics.getDeltaTime();
+
         if (gameStat == "menu"){
             menu();
         } else if (gameStat == "play" || gameStat== "GAMEOVER") {
@@ -225,10 +240,13 @@ public class GameMain extends ApplicationAdapter {
             float mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
 
             // Verifica se il mouse si trova dentro il rettangolo del pulsante
-            if (mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH) {
+            if ((mouseX >= btnX && mouseX <= btnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH)) {
                 gameStat = "play"; // Fai partire il gioco (assicurati che sia "play" o "PLAYING")
                 bgMusic.play();
             }
+        }else if(gamepad !=null && gamepad.getButton(6)){
+            gameStat = "play"; // Fai partire il gioco (assicurati che sia "play" o "PLAYING")
+            bgMusic.play();
         }
 
         // --- RENDERING GRAFICO ---
@@ -280,19 +298,20 @@ public class GameMain extends ApplicationAdapter {
         if (gameStat != "GAMEOVER") {
             // Calcola la velocità orizzontale desiderata in questo frame
             float moveX = 0;
-            if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
+            if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT) || (gamepad != null && gamepad.getAxis(0)< -0.2f)) {
                 moveX = -vel;
                 flipX = true;
                 if (!isJumping) {
                     newState = State.RUNNING;
                 }
-            } else if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
+            } else if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT) || (gamepad != null && gamepad.getAxis(0)> 0.2f)) {
                 moveX = vel;
                 flipX = false;
                 if (!isJumping) {
                     newState = State.RUNNING;
                 }
             }
+
             if (!isJumping && moveX == 0) {
                 newState = State.IDLE;
             }
@@ -350,7 +369,8 @@ public class GameMain extends ApplicationAdapter {
                 isJumping = false;
                 playerBounds.y = player.getY();
 
-                if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
+
+                if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP) || (gamepad != null && gamepad.getButton(0))) {
                     isJumping = true;
                     jumpSound.play(1.0f);
                     newState = State.JUMPING;
@@ -372,7 +392,7 @@ public class GameMain extends ApplicationAdapter {
                         isJumping = false;
                         playerBounds.y = player.getY();
 
-                        if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
+                        if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP) || (gamepad != null && gamepad.getButton(0))) {
                             isJumping = true;
                             jumpSound.play(1.0f);
                             newState = State.JUMPING;

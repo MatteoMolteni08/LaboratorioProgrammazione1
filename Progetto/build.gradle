@@ -67,3 +67,16 @@ subprojects {
 }
 
 eclipse.project.name = 'progettoM121' + '-parent'
+
+project(":core") {
+  dependencies {
+    api "com.badlogicgames.gdx-controllers:gdx-controllers-core:$gdxControllersVersion"
+  }
+}
+
+project(":lwjgl3") {
+  dependencies {
+    implementation project(":core")
+    implementation "com.badlogicgames.gdx-controllers:gdx-controllers-desktop:$gdxControllersVersion"
+  }
+}
